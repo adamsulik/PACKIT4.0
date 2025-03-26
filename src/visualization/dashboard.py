@@ -10,6 +10,11 @@ import dash_bootstrap_components as dbc
 from dash.dependencies import Input, Output, State
 
 from src.config import PALLET_TYPES
+from src.utils.data_loader import generate_pallet_sets
+
+
+# Pobierz nazwy zestawów palet
+PALLET_SET_NAMES = list(generate_pallet_sets().keys())
 
 
 def create_layout() -> html.Div:
@@ -35,6 +40,19 @@ def create_layout() -> html.Div:
             # Przyciski kontrolne i opcje
             dbc.Row([
                 dbc.Col([
+                    # Wybór zestawu palet
+                    html.H5("Wybierz zestaw palet:"),
+                    dcc.Dropdown(
+                        id="pallet-set-dropdown",
+                        options=[
+                            {"label": name, "value": name}
+                            for name in PALLET_SET_NAMES
+                        ],
+                        value=PALLET_SET_NAMES[0] if PALLET_SET_NAMES else None,
+                        clearable=False,
+                        className="mb-3"
+                    ),
+                    
                     # Wybór algorytmu
                     html.H5("Wybierz metodę załadunku:"),
                     dcc.Dropdown(
@@ -42,7 +60,7 @@ def create_layout() -> html.Div:
                         options=[
                             {"label": "Załadunek wzdłuż osi X i Z", "value": "XZ_Axis_Loading"},
                             {"label": "Załadunek w oparciu o rozkład X", "value": "X_Distribution"},
-                            {"label": "Załadunek w oparciu o rozkład Z", "value": "Z_Distribution"},
+                            {"label": "Załadunek w oparciu o rozkład Y", "value": "Y_Distribution"},
                             {"label": "Uczenie ze wzmocnieniem", "value": "RL_Loading"}
                         ],
                         value="XZ_Axis_Loading",
@@ -63,8 +81,8 @@ def create_layout() -> html.Div:
                 ], md=4),
                 
                 dbc.Col([
-                    # Lista palet do załadunku
-                    html.H5("Palety do załadunku:"),
+                    # Lista palet w zestawie
+                    html.H5("Palety w zestawie:"),
                     html.Div([
                         # Tabela palet
                         dbc.Card([
@@ -82,8 +100,6 @@ def create_layout() -> html.Div:
                                         {"name": "Fragile", "id": "fragile"}
                                     ],
                                     data=[],
-                                    row_selectable="multi",
-                                    selected_rows=[],
                                     page_size=10,
                                     style_cell={
                                         'whiteSpace': 'normal',
@@ -105,85 +121,17 @@ def create_layout() -> html.Div:
                         ])
                     ]),
                     
-                    # Przyciski do zarządzania paletami
-                    dbc.Row([
-                        dbc.Col([
-                            dbc.Button(
-                                "Dodaj paletę",
-                                id="add-pallet-button",
-                                color="success",
-                                className="mt-3 w-100"
-                            )
-                        ], width=6),
-                        dbc.Col([
-                            dbc.Button(
-                                "Usuń zaznaczone",
-                                id="remove-pallet-button",
-                                color="danger",
-                                className="mt-3 w-100"
-                            )
-                        ], width=6)
+                    # Statystyki zestawu palet
+                    html.Div([
+                        html.H5("Statystyki zestawu:", className="mt-3"),
+                        dbc.Card([
+                            dbc.CardBody([
+                                html.Div(id="pallet-set-stats")
+                            ])
+                        ])
                     ])
                 ], md=8)
             ], className="mb-4"),
-            
-            # Modal do dodawania nowej palety
-            dbc.Modal([
-                dbc.ModalHeader("Dodaj nową paletę"),
-                dbc.ModalBody([
-                    dbc.Form([
-                        dbc.Row([
-                            dbc.Label("Typ palety:"),
-                            dcc.Dropdown(
-                                id="new-pallet-type",
-                                options=[
-                                    {"label": f"{ptype} ({specs['length']}x{specs['width']}x{specs['height']} mm)", 
-                                     "value": ptype}
-                                    for ptype, specs in PALLET_TYPES.items()
-                                ],
-                                value="EUR",
-                                clearable=False
-                            )
-                        ], className="mb-3"),
-                        dbc.Row([
-                            dbc.Label("Masa ładunku (kg):"),
-                            dbc.Input(
-                                id="new-pallet-cargo-weight",
-                                type="number",
-                                min=0,
-                                max=2000,
-                                value=100
-                            )
-                        ], className="mb-3"),
-                        dbc.Row([
-                            dbc.Label("Czy można układać w stosy:"),
-                            dbc.Checklist(
-                                options=[
-                                    {"label": "Tak", "value": 1}
-                                ],
-                                value=[1],
-                                id="new-pallet-stackable",
-                                switch=True
-                            )
-                        ], className="mb-3"),
-                        dbc.Row([
-                            dbc.Label("Czy ładunek jest kruchy:"),
-                            dbc.Checklist(
-                                options=[
-                                    {"label": "Tak", "value": 1}
-                                ],
-                                value=[],
-                                id="new-pallet-fragile",
-                                switch=True
-                            )
-                        ], className="mb-3")
-                    ])
-                ]),
-                dbc.ModalFooter([
-                    dbc.Button("Anuluj", id="cancel-add-pallet", className="ml-auto"),
-                    dbc.Button("Dodaj", id="confirm-add-pallet", color="primary")
-                ])
-            ], id="add-pallet-modal"),
             
             # Kontener na wizualizację 3D
             dbc.Row([
@@ -273,4 +221,46 @@ def generate_pallet_visibility_controls(pallets: List[Dict[str, Any]]) -> List[d
             )
         )
     
-    return controls 
+    return controls
+
+
+def generate_pallet_set_stats(pallets: List[Dict[str, Any]]) -> html.Div:
+    """
+    Generuje statystyki dla zestawu palet.
+    
+    Args:
+        pallets: Lista palet
+        
+    Returns:
+        html.Div: Statystyki zestawu palet
+    """
+    if not pallets:
+        return html.P("Brak danych o paletach.")
+    
+    # Obliczenie statystyk
+    total_pallets = len(pallets)
+    total_weight = sum(p.get('cargo_weight', 0) + p.get('weight', 0) for p in pallets)
+    total_ldm = sum(PALLET_TYPES[p.get('pallet_type', '')].get('ldm', 0) for p in pallets)
+    
+    # Liczba palet według typu
+    pallet_types_count = {}
+    for p in pallets:
+        pallet_type = p.get('pallet_type', '')
+        if pallet_type not in pallet_types_count:
+            pallet_types_count[pallet_type] = 0
+        pallet_types_count[pallet_type] += 1
+    
+    # Tworzenie komponentu statystyk
+    stats = [
+        html.P(f"Łączna liczba palet: {total_pallets}"),
+        html.P(f"Łączna masa: {total_weight} kg"),
+        html.P(f"Łączny LDM: {total_ldm:.2f}"),
+        html.Hr(),
+        html.P("Liczba palet według typu:"),
+        html.Ul([
+            html.Li(f"{ptype}: {count} szt.")
+            for ptype, count in pallet_types_count.items()
+        ])
+    ]
+    
+    return html.Div(stats) 

@@ -7,7 +7,7 @@ from typing import Dict, Any, Optional
 from src.algorithms.base_algorithm import LoadingAlgorithm
 from src.algorithms.xz_axis_loading import XZAxisLoading
 from src.algorithms.x_distribution import XDistributionLoading
-from src.algorithms.z_distribution import ZDistributionLoading
+from src.algorithms.y_distribution import YDistributionLoading
 # Import algorytmu uczenia ze wzmocnieniem w przyszłości
 # from src.algorithms.reinforcement_learning import ReinforcementLearningLoading
 
@@ -30,7 +30,7 @@ def get_algorithm(algorithm_name: str, config: Optional[Dict[str, Any]] = None) 
     algorithm_map = {
         "XZ_Axis_Loading": XZAxisLoading,
         "X_Distribution": XDistributionLoading,
-        "Z_Distribution": ZDistributionLoading,
+        "Y_Distribution": YDistributionLoading,
         # "RL_Loading": ReinforcementLearningLoading
     }
     
@@ -53,6 +53,6 @@ def list_available_algorithms() -> Dict[str, str]:
     return {
         "XZ_Axis_Loading": "Metoda załadunku wzdłuż osi X oraz osi Z, która optymalizuje wykorzystanie przestrzeni naczepy.",
         "X_Distribution": "Algorytm załadunku w oparciu o rozkład X, który balansuje masę ładunku wzdłuż długości naczepy.",
-        "Z_Distribution": "Algorytm załadunku w oparciu o rozkład Z, który optymalizuje stabilność ładunku.",
+        "Y_Distribution": "Algorytm załadunku w oparciu o rozkład Y, który optymalizuje układanie palet wzdłuż szerokości naczepy.",
         "RL_Loading": "Zastosowanie uczenia ze wzmocnieniem do optymalizacji załadunku, dostosowując się do różnych scenariuszy."
     } 

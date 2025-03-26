@@ -41,6 +41,7 @@ class XDistributionLoading(LoadingAlgorithm):
     def load_pallets(self, pallets: List[Pallet]) -> List[Pallet]:
         """
         Przeprowadza załadunek palet do naczepy z balansowaniem masy wzdłuż osi X.
+        Wszystkie palety są umieszczane na poziomie z=0 (bez stackowania).
         
         Args:
             pallets: Lista palet do załadunku
@@ -80,7 +81,8 @@ class XDistributionLoading(LoadingAlgorithm):
                 if position:
                     # Ustawienie pozycji palety
                     x, y, z = position
-                    pallet.set_position(x, y, z)
+                    # Upewnienie się, że z=0
+                    pallet.set_position(x, y, 0)
                     
                     # Dodanie palety do naczepy
                     if self.trailer.add_pallet(pallet):
@@ -88,7 +90,7 @@ class XDistributionLoading(LoadingAlgorithm):
                         zones[best_zone].append(pallet)
                         zone_weights[best_zone] += pallet.total_weight
                         
-                        logger.debug(f"Załadowano paletę {pallet.pallet_id} w strefie {best_zone} na pozycji {position}")
+                        logger.debug(f"Załadowano paletę {pallet.pallet_id} w strefie {best_zone} na pozycji ({x}, {y}, 0)")
                 else:
                     # Próba obrócenia palety
                     original_rotation = pallet.rotation
@@ -99,7 +101,8 @@ class XDistributionLoading(LoadingAlgorithm):
                     if position:
                         # Ustawienie pozycji palety
                         x, y, z = position
-                        pallet.set_position(x, y, z)
+                        # Upewnienie się, że z=0
+                        pallet.set_position(x, y, 0)
                         
                         # Dodanie palety do naczepy
                         if self.trailer.add_pallet(pallet):
@@ -107,7 +110,7 @@ class XDistributionLoading(LoadingAlgorithm):
                             zones[best_zone].append(pallet)
                             zone_weights[best_zone] += pallet.total_weight
                             
-                            logger.debug(f"Załadowano obróconą paletę {pallet.pallet_id} w strefie {best_zone} na pozycji {position}")
+                            logger.debug(f"Załadowano obróconą paletę {pallet.pallet_id} w strefie {best_zone} na pozycji ({x}, {y}, 0)")
                     else:
                         # Przywróć oryginalną rotację, jeśli nie udało się załadować
                         if pallet.rotation != original_rotation:
@@ -125,6 +128,7 @@ class XDistributionLoading(LoadingAlgorithm):
                           balancing_factor: float) -> Optional[int]:
         """
         Wybiera najlepszą strefę dla palety, biorąc pod uwagę balansowanie masy.
+        Szuka pozycji tylko na poziomie z=0 (bez stackowania).
         
         Args:
             pallet: Paleta do umieszczenia
@@ -162,7 +166,7 @@ class XDistributionLoading(LoadingAlgorithm):
                 height=pallet.height,
                 weight=pallet.weight,
                 cargo_weight=pallet.cargo_weight,
-                position=(x_start, 0, 0),  # Tymczasowa pozycja w strefie
+                position=(x_start, 0, 0),  # Tymczasowa pozycja w strefie na poziomie z=0
                 rotation=pallet.rotation
             )
             
@@ -170,7 +174,7 @@ class XDistributionLoading(LoadingAlgorithm):
             available_in_zone = False
             for x in range(x_start, x_end - temp_pallet.dimensions[0] + 1, 100):
                 for y in range(0, self.trailer.width - temp_pallet.dimensions[1] + 1, 100):
-                    # Sprawdzenie, czy paleta zmieści się na tej pozycji
+                    # Sprawdzenie, czy paleta zmieści się na tej pozycji (zawsze z=0)
                     temp_pallet.set_position(x, y, 0)
                     if not any(temp_pallet.collides_with(loaded_pallet) for loaded_pallet in self.trailer.loaded_pallets):
                         available_in_zone = True
@@ -197,6 +201,7 @@ class XDistributionLoading(LoadingAlgorithm):
     def _find_position_in_zone(self, pallet: Pallet, zone_idx: int, zone_length: int) -> Optional[Tuple[int, int, int]]:
         """
         Znajduje pozycję dla palety w określonej strefie.
+        Palety są zawsze umieszczane na poziomie z=0 (bez stackowania).
         
         Args:
             pallet: Paleta do umieszczenia
@@ -211,32 +216,31 @@ class XDistributionLoading(LoadingAlgorithm):
         x_end = min((zone_idx + 1) * zone_length, self.trailer.length)
         
         best_position = None
-        lowest_z = float('inf')
+        
+        # Stała wysokość z=0
+        z = 0
         
         # Przeszukanie potencjalnych pozycji w strefie
         for x in range(x_start, x_end - pallet.dimensions[0] + 1, 100):
             for y in range(0, self.trailer.width - pallet.dimensions[1] + 1, 100):
-                # Sprawdzenie najniższej dostępnej wysokości
-                z = self.trailer._find_lowest_available_height(x, y, pallet.dimensions[0], pallet.dimensions[1])
+                # Sprawdzenie czy pozycja jest dostępna na poziomie z=0
+                temp_pallet = Pallet(
+                    pallet_id=pallet.pallet_id,
+                    pallet_type=pallet.pallet_type,
+                    length=pallet.length,
+                    width=pallet.width,
+                    height=pallet.height,
+                    weight=pallet.weight,
+                    cargo_weight=pallet.cargo_weight,
+                    position=(x, y, z),
+                    rotation=pallet.rotation
+                )
                 
-                if z is not None and z + pallet.dimensions[2] <= self.trailer.height:
-                    # Sprawdzenie, czy ta pozycja jest niżej niż poprzednia najlepsza
-                    if z < lowest_z:
-                        temp_pallet = Pallet(
-                            pallet_id=pallet.pallet_id,
-                            pallet_type=pallet.pallet_type,
-                            length=pallet.length,
-                            width=pallet.width,
-                            height=pallet.height,
-                            weight=pallet.weight,
-                            cargo_weight=pallet.cargo_weight,
-                            position=(x, y, z),
-                            rotation=pallet.rotation
-                        )
-                        
-                        # Sprawdzenie kolizji
-                        if not self.trailer._check_collision(temp_pallet):
-                            best_position = (x, y, z)
-                            lowest_z = z
+                # Sprawdzenie kolizji
+                if not self.trailer._check_collision(temp_pallet):
+                    # Znaleziono odpowiednią pozycję
+                    best_position = (x, y, z)
+                    # Zwróć pozycję jak najszybciej po znalezieniu wolnego miejsca
+                    return best_position
         
         return best_position 

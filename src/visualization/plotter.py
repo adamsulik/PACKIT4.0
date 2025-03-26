@@ -187,8 +187,12 @@ def _add_pallet_to_figure(fig: go.Figure, pallet: Pallet) -> None:
     x, y, z = pallet.position
     length, width, height = pallet.dimensions
     
-    # Kolor palety
-    color = pallet.color
+    # Kolor palety (bez przezroczystości)
+    color_base = pallet.color
+    if "rgba" in color_base:
+        # Zamień rgba na rgb, całkowicie usuwając przezroczystość
+        color_parts = color_base.replace("rgba(", "").replace(")", "").split(",")
+        color_base = f"rgb({color_parts[0]},{color_parts[1]},{color_parts[2]})"
     
     # Wierzchołki palety
     vertices_x = [
@@ -204,19 +208,136 @@ def _add_pallet_to_figure(fig: go.Figure, pallet: Pallet) -> None:
         z + height, z + height, z + height, z + height
     ]
     
-    # Dodanie palety jako prostopadłościanu
+    # Dodanie ścian palety z różnymi kolorami
+    # Ściana dolna (podłoga) - ciemniejsza
+    floor_color = color_base
     fig.add_trace(go.Mesh3d(
-        x=vertices_x,
-        y=vertices_y,
-        z=vertices_z,
-        i=[0, 0, 0, 0, 4, 4, 4, 4],
-        j=[1, 2, 3, 7, 5, 6, 7, 3],
-        k=[2, 3, 7, 6, 6, 7, 3, 2],
-        color=color,
+        x=[x, x + length, x + length, x],
+        y=[y, y, y + width, y + width],
+        z=[z, z, z, z],
+        i=[0, 0],
+        j=[1, 3],
+        k=[2, 2],
+        color=floor_color,
         flatshading=True,
-        name=f"Pallet {pallet.pallet_id}: {pallet.pallet_type} ({pallet.total_weight} kg)",
-        hoverinfo="text",
-        hovertext=f"ID: {pallet.pallet_id}<br>Typ: {pallet.pallet_type}<br>Wymiary: {length}x{width}x{height} mm<br>Masa: {pallet.total_weight} kg<br>Pozycja: ({x}, {y}, {z})"
+        name=f"Pallet {pallet.pallet_id} Floor"
+    ))
+    
+    # Ściana górna (sufit) - jaśniejsza
+    ceiling_color = color_base
+    fig.add_trace(go.Mesh3d(
+        x=[x, x + length, x + length, x],
+        y=[y, y, y + width, y + width],
+        z=[z + height, z + height, z + height, z + height],
+        i=[0, 0],
+        j=[1, 3],
+        k=[2, 2],
+        color=ceiling_color,
+        flatshading=True,
+        name=f"Pallet {pallet.pallet_id} Ceiling"
+    ))
+    
+    # Ściana przednia
+    front_color = color_base
+    fig.add_trace(go.Mesh3d(
+        x=[x, x + length, x + length, x],
+        y=[y, y, y, y],
+        z=[z, z, z + height, z + height],
+        i=[0, 0],
+        j=[1, 3],
+        k=[2, 2],
+        color=front_color,
+        flatshading=True,
+        name=f"Pallet {pallet.pallet_id} Front"
+    ))
+    
+    # Ściana tylna
+    back_color = color_base
+    fig.add_trace(go.Mesh3d(
+        x=[x, x + length, x + length, x],
+        y=[y + width, y + width, y + width, y + width],
+        z=[z, z, z + height, z + height],
+        i=[0, 0],
+        j=[1, 3],
+        k=[2, 2],
+        color=back_color,
+        flatshading=True,
+        name=f"Pallet {pallet.pallet_id} Back"
+    ))
+    
+    # Ściana lewa
+    left_color = color_base
+    fig.add_trace(go.Mesh3d(
+        x=[x, x, x, x],
+        y=[y, y + width, y + width, y],
+        z=[z, z, z + height, z + height],
+        i=[0, 0],
+        j=[1, 3],
+        k=[2, 2],
+        color=left_color,
+        flatshading=True,
+        name=f"Pallet {pallet.pallet_id} Left"
+    ))
+    
+    # Ściana prawa
+    right_color = color_base
+    fig.add_trace(go.Mesh3d(
+        x=[x + length, x + length, x + length, x + length],
+        y=[y, y + width, y + width, y],
+        z=[z, z, z + height, z + height],
+        i=[0, 0],
+        j=[1, 3],
+        k=[2, 2],
+        color=right_color,
+        flatshading=True,
+        name=f"Pallet {pallet.pallet_id} Right"
+    ))
+    
+    # Dodanie konturów palety
+    # Dolny prostokąt
+    fig.add_trace(go.Scatter3d(
+        x=[x, x + length, x + length, x, x],
+        y=[y, y, y + width, y + width, y],
+        z=[z, z, z, z, z],
+        mode='lines',
+        line=dict(color='black', width=3),
+        name=f"Pallet {pallet.pallet_id} Bottom Edge"
+    ))
+    
+    # Górny prostokąt
+    fig.add_trace(go.Scatter3d(
+        x=[x, x + length, x + length, x, x],
+        y=[y, y, y + width, y + width, y],
+        z=[z + height, z + height, z + height, z + height, z + height],
+        mode='lines',
+        line=dict(color='black', width=3),
+        name=f"Pallet {pallet.pallet_id} Top Edge"
+    ))
+    
+    # Pionowe krawędzie
+    for dx, dy in [(0, 0), (length, 0), (length, width), (0, width)]:
+        fig.add_trace(go.Scatter3d(
+            x=[x + dx, x + dx],
+            y=[y + dy, y + dy],
+            z=[z, z + height],
+            mode='lines',
+            line=dict(color='black', width=3),
+            name=f"Pallet {pallet.pallet_id} Vertical Edge"
+        ))
+    
+    # Dodanie tekstu informacyjnego na hover
+    hover_text = f"ID: {pallet.pallet_id}<br>Typ: {pallet.pallet_type}<br>Wymiary: {length}x{width}x{height} mm<br>Masa: {pallet.total_weight} kg<br>Pozycja: ({x}, {y}, {z})"
+    
+    # Dodanie punktu centralnego dla hovertekstu
+    fig.add_trace(go.Scatter3d(
+        x=[x + length/2],
+        y=[y + width/2],
+        z=[z + height/2],
+        mode='markers',
+        marker=dict(size=1, opacity=0),
+        hoverinfo='text',
+        hovertext=hover_text,
+        name=f"Pallet {pallet.pallet_id} Info"
     ))
 
 

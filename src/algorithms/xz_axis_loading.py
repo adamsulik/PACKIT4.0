@@ -113,8 +113,34 @@ class XZAxisLoading(LoadingAlgorithm):
         Returns:
             Optional[Tuple[int, int, int]]: Pozycja (x, y, z) lub None, jeśli nie znaleziono miejsca
         """
-        # Dostępne pozycje dla palety
-        available_positions = self.trailer.get_available_positions(pallet)
+        # Ustawiamy palety zawsze na poziomie z=0 (bez piętrowania)
+        z = 0
+        
+        # Dostępne pozycje dla palety (przeszukujemy tylko przy z=0)
+        available_positions = []
+        
+        # Krok przeszukiwania (co 100 mm)
+        step = 100
+        
+        # Przeszukiwanie pozycji na poziomie z=0
+        for x in range(0, self.trailer.length - pallet.dimensions[0] + 1, step):
+            for y in range(0, self.trailer.width - pallet.dimensions[1] + 1, step):
+                # Utworzenie tymczasowej palety w badanej pozycji
+                temp_pallet = Pallet(
+                    pallet_id=pallet.pallet_id,
+                    pallet_type=pallet.pallet_type,
+                    length=pallet.length,
+                    width=pallet.width,
+                    height=pallet.height,
+                    weight=pallet.weight,
+                    cargo_weight=pallet.cargo_weight,
+                    position=(x, y, z),
+                    rotation=pallet.rotation
+                )
+                
+                # Sprawdzenie kolizji
+                if not self.trailer._check_collision(temp_pallet):
+                    available_positions.append((x, y, z))
         
         if not available_positions:
             return None
@@ -122,10 +148,10 @@ class XZAxisLoading(LoadingAlgorithm):
         # Sortowanie pozycji według strategii
         if start_position == "front":
             # Zacznij od przodu naczepy (niskie X)
-            available_positions.sort(key=lambda pos: (pos[2], pos[0], pos[1]))
+            available_positions.sort(key=lambda pos: (pos[0], pos[1]))
         else:
             # Zacznij od tyłu naczepy (wysokie X)
-            available_positions.sort(key=lambda pos: (pos[2], -pos[0], pos[1]))
+            available_positions.sort(key=lambda pos: (-pos[0], pos[1]))
         
         # Zwróć najlepszą pozycję
         return available_positions[0] if available_positions else None 
