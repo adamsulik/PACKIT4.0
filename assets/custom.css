@@ -1,0 +1,149 @@
+/* Custom styles for PACKIT 4.0 */
+
+/* General layout */
+body {
+    font-family: 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+    background-color: #f8f9fa;
+    overflow-x: hidden;
+}
+
+/* Header styles */
+.jumbotron {
+    background-color: #3f51b5;
+    color: white;
+    border-radius: 0;
+    padding: 1.5rem 2rem !important;
+    margin-bottom: 1.5rem !important;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Card styles */
+.card {
+    border: none;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card:hover {
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+.card-header {
+    background-color: #f4f5f7;
+    border-bottom: 1px solid #e9ecef;
+    padding: 0.75rem 1.25rem;
+}
+
+.card-body {
+    padding: 1.25rem;
+}
+
+/* Button styles */
+.btn-primary {
+    background-color: #3f51b5;
+    border-color: #3f51b5;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s ease;
+}
+
+.btn-primary:hover {
+    background-color: #303f9f;
+    border-color: #303f9f;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    transform: translateY(-1px);
+}
+
+/* Table styles */
+.table th {
+    background-color: #f2f6fc;
+    font-weight: 600;
+}
+
+/* Progress bar styles */
+.progress {
+    height: 0.8rem;
+    border-radius: 10px;
+    margin-bottom: 1rem;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 767.98px) {
+    .display-4 {
+        font-size: 2rem;
+    }
+    
+    .lead {
+        font-size: 1rem;
+    }
+    
+    .card-header h4, .card-header h5 {
+        font-size: 1.1rem;
+    }
+    
+    .card-body {
+        padding: 1rem;
+    }
+    
+    .table {
+        font-size: 0.8rem;
+    }
+}
+
+/* Tablet responsiveness */
+@media (min-width: 768px) and (max-width: 991.98px) {
+    .display-4 {
+        font-size: 2.5rem;
+    }
+}
+
+/* Dropdown styling */
+.dash-dropdown .Select-control {
+    border-radius: 6px;
+    border: 1px solid #ced4da;
+}
+
+.dash-dropdown .Select-menu-outer {
+    border-radius: 0 0 6px 6px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+/* DataTable styling */
+.dash-table-container .dash-spreadsheet-container .dash-spreadsheet-inner table {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    border-radius: 6px;
+}
+
+/* 3D visualization container */
+#visualization-container {
+    background-color: #f9f9f9;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+/* Alert styling */
+.alert-info {
+    background-color: #e8eaf6;
+    border-color: #c5cae9;
+    color: #3f51b5;
+}
+
+/* Custom scrollbar for WebKit browsers */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #c5cae9;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #3f51b5;
+} 

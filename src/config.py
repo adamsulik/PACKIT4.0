@@ -10,6 +10,9 @@ TRAILER_CONFIG = {
     "max_load": 24000 # Maksymalna masa ładunku w kg
 }
 
+# Alias dla TRAILER_CONFIG, używany w interfejsie
+TRAILER_DIMENSIONS = TRAILER_CONFIG
+
 # Specyfikacja palet transportowych (w mm i kg)
 PALLET_TYPES = {
     "L1": {

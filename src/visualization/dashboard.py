@@ -27,146 +27,146 @@ def create_layout() -> html.Div:
     return html.Div([
         # Nagłówek
         html.Div([
-            html.H1("PACKIT 4.0 - Optymalizacja załadunku palet", className="display-4"),
+            html.H1("PACKIT 4.0 - Optymalizacja załadunku palet", className="display-4 text-center"),
             html.Hr(),
             html.P(
                 "System do optymalizacji załadunku palet transportowych z wykorzystaniem metod uczenia maszynowego",
-                className="lead"
+                className="lead text-center"
             )
-        ], className="jumbotron p-4"),
+        ], className="jumbotron p-3 mb-4"),
         
         # Główny kontener
         dbc.Container([
-            # Przyciski kontrolne i opcje
             dbc.Row([
+                # Panel kontrolny po lewej
                 dbc.Col([
-                    # Wybór zestawu palet
-                    html.H5("Wybierz zestaw palet:"),
-                    dcc.Dropdown(
-                        id="pallet-set-dropdown",
-                        options=[
-                            {"label": name, "value": name}
-                            for name in PALLET_SET_NAMES
-                        ],
-                        value=PALLET_SET_NAMES[0] if PALLET_SET_NAMES else None,
-                        clearable=False,
-                        className="mb-3"
-                    ),
-                    
-                    # Wybór algorytmu
-                    html.H5("Wybierz metodę załadunku:"),
-                    dcc.Dropdown(
-                        id="algorithm-dropdown",
-                        options=[
-                            {"label": "Załadunek wzdłuż osi X i Z", "value": "XZ_Axis_Loading"},
-                            {"label": "Załadunek w oparciu o rozkład X", "value": "X_Distribution"},
-                            {"label": "Załadunek w oparciu o rozkład Y", "value": "Y_Distribution"},
-                            {"label": "Uczenie ze wzmocnieniem", "value": "RL_Loading"}
-                        ],
-                        value="XZ_Axis_Loading",
-                        clearable=False,
-                        className="mb-3"
-                    ),
-                    
-                    # Opis wybranego algorytmu
-                    html.Div(id="algorithm-description", className="alert alert-info"),
-                    
-                    # Przycisk uruchomienia algorytmu
-                    dbc.Button(
-                        "Uruchom algorytm",
-                        id="run-algorithm-button",
-                        color="primary",
-                        className="mt-3 mb-4 w-100"
-                    )
-                ], md=4),
-                
-                dbc.Col([
-                    # Lista palet w zestawie
-                    html.H5("Palety w zestawie:"),
-                    html.Div([
-                        # Tabela palet
-                        dbc.Card([
-                            dbc.CardHeader("Lista palet"),
-                            dbc.CardBody([
-                                dash_table.DataTable(
-                                    id='pallet-table',
-                                    columns=[
-                                        {"name": "ID", "id": "pallet_id"},
-                                        {"name": "Typ", "id": "pallet_type"},
-                                        {"name": "Wymiary (mm)", "id": "dimensions"},
-                                        {"name": "Masa (kg)", "id": "weight"},
-                                        {"name": "Ładunek (kg)", "id": "cargo_weight"},
-                                        {"name": "Stackable", "id": "stackable"},
-                                        {"name": "Fragile", "id": "fragile"}
-                                    ],
-                                    data=[],
-                                    page_size=10,
-                                    style_cell={
-                                        'whiteSpace': 'normal',
-                                        'height': 'auto',
-                                        'textAlign': 'left'
-                                    },
-                                    style_data_conditional=[
-                                        {
-                                            'if': {'row_index': 'odd'},
-                                            'backgroundColor': 'rgb(248, 248, 248)'
-                                        }
-                                    ],
-                                    style_header={
-                                        'backgroundColor': 'rgb(230, 230, 230)',
-                                        'fontWeight': 'bold'
-                                    }
-                                )
-                            ])
-                        ])
-                    ]),
-                    
-                    # Statystyki zestawu palet
-                    html.Div([
-                        html.H5("Statystyki zestawu:", className="mt-3"),
-                        dbc.Card([
-                            dbc.CardBody([
-                                html.Div(id="pallet-set-stats")
-                            ])
-                        ])
-                    ])
-                ], md=8)
-            ], className="mb-4"),
-            
-            # Kontener na wizualizację 3D
-            dbc.Row([
-                dbc.Col([
-                    html.H3("Wizualizacja załadunku:", className="mb-3"),
                     dbc.Card([
+                        dbc.CardHeader(html.H4("Panel sterowania", className="text-center")),
                         dbc.CardBody([
-                            html.Div(id="visualization-container", style={"height": "80vh"})
+                            # Wybór zestawu palet
+                            html.H5("Wybierz zestaw palet:", className="mb-2"),
+                            dcc.Dropdown(
+                                id="pallet-set-dropdown",
+                                options=[
+                                    {"label": name, "value": name}
+                                    for name in PALLET_SET_NAMES
+                                ],
+                                value=PALLET_SET_NAMES[0] if PALLET_SET_NAMES else None,
+                                clearable=False,
+                                className="mb-4"
+                            ),
+                            
+                            # Wybór algorytmu
+                            html.H5("Wybierz metodę załadunku:", className="mb-2"),
+                            dcc.Dropdown(
+                                id="algorithm-dropdown",
+                                options=[
+                                    {"label": "Załadunek wzdłuż osi X i Z", "value": "XZ_Axis_Loading"},
+                                    {"label": "Załadunek w oparciu o rozkład X", "value": "X_Distribution"},
+                                    {"label": "Załadunek w oparciu o rozkład Y", "value": "Y_Distribution"},
+                                    {"label": "Uczenie ze wzmocnieniem", "value": "RL_Loading"}
+                                ],
+                                value="XZ_Axis_Loading",
+                                clearable=False,
+                                className="mb-4"
+                            ),
+                            
+                            # Opis wybranego algorytmu
+                            html.Div(id="algorithm-description", className="alert alert-info mb-4"),
+                            
+                            # Przycisk uruchomienia algorytmu
+                            dbc.Button(
+                                "Uruchom algorytm",
+                                id="run-algorithm-button",
+                                color="primary",
+                                className="mb-4 w-100"
+                            ),
+                            
+                            # Lista palet w zestawie
+                            html.H5("Palety w zestawie:", className="mb-2"),
+                            dash_table.DataTable(
+                                id='pallet-table',
+                                columns=[
+                                    {"name": "ID", "id": "pallet_id"},
+                                    {"name": "Typ", "id": "pallet_type"},
+                                    {"name": "Wymiary (mm)", "id": "dimensions"},
+                                    {"name": "Masa (kg)", "id": "weight"},
+                                    {"name": "Ładunek (kg)", "id": "cargo_weight"},
+                                    {"name": "Stackable", "id": "stackable"},
+                                    {"name": "Fragile", "id": "fragile"}
+                                ],
+                                data=[],
+                                page_size=5,
+                                style_cell={
+                                    'whiteSpace': 'normal',
+                                    'height': 'auto',
+                                    'textAlign': 'left',
+                                    'fontSize': '12px',
+                                    'padding': '5px'
+                                },
+                                style_data_conditional=[
+                                    {
+                                        'if': {'row_index': 'odd'},
+                                        'backgroundColor': 'rgb(248, 248, 248)'
+                                    }
+                                ],
+                                style_header={
+                                    'backgroundColor': 'rgb(230, 230, 230)',
+                                    'fontWeight': 'bold',
+                                    'fontSize': '12px',
+                                    'padding': '5px'
+                                },
+                                style_table={'overflowX': 'auto'}
+                            ),
+                            
+                            # Statystyki zestawu palet
+                            html.H5("Statystyki zestawu:", className="mt-4 mb-2"),
+                            html.Div(id="pallet-set-stats", className="mb-2")
                         ])
-                    ])
-                ], width=12)
+                    ], className="h-100 shadow")
+                ], xs=12, sm=12, md=4, lg=3, xl=3, className="mb-4"),
+                
+                # Wizualizacja na środku
+                dbc.Col([
+                    dbc.Card([
+                        dbc.CardHeader(html.H4("Wizualizacja załadunku", className="text-center")),
+                        dbc.CardBody([
+                            html.Div(id="visualization-container", style={"height": "70vh"})
+                        ])
+                    ], className="h-100 shadow")
+                ], xs=12, sm=12, md=8, lg=9, xl=9, className="mb-4")
             ]),
             
-            # Sekcja statystyk
+            # Statystyki pod wizualizacją ułożone poziomo
             dbc.Row([
                 dbc.Col([
-                    html.H3("Statystyki załadunku:", className="mt-4 mb-3"),
                     dbc.Card([
-                        dbc.CardHeader(html.H5("Rozkład masy")),
+                        dbc.CardHeader(html.H5("Rozkład masy", className="text-center")),
                         dbc.CardBody([
                             html.Div(id="weight-distribution-container")
                         ])
-                    ])
-                ], md=6),
+                    ], className="h-100 shadow")
+                ], xs=12, sm=12, md=4, className="mb-4"),
+                
                 dbc.Col([
-                    html.H3("\u00A0", className="mt-4 mb-3"),  # Niewidoczny nagłówek dla wyrównania
                     dbc.Card([
-                        dbc.CardHeader(html.H5("Efektywność załadunku")),
+                        dbc.CardHeader(html.H5("Efektywność załadunku", className="text-center")),
                         dbc.CardBody([
                             html.Div(id="efficiency-container")
                         ])
-                    ])
-                ], md=6)
-            ], className="mb-5")
-        ], fluid=True)
+                    ], className="h-100 shadow")
+                ], xs=12, sm=12, md=4, className="mb-4"),
+                
+                dbc.Col([
+                    dbc.Card([
+                        dbc.CardHeader(html.H5("Statystyki całościowe", className="text-center")),
+                        dbc.CardBody([
+                            html.Div(id="overall-stats-container")
+                        ])
+                    ], className="h-100 shadow")
+                ], xs=12, sm=12, md=4, className="mb-4")
+            ])
+        ], fluid=True, className="mb-5")
     ])
 
 
@@ -250,17 +250,50 @@ def generate_pallet_set_stats(pallets: List[Dict[str, Any]]) -> html.Div:
             pallet_types_count[pallet_type] = 0
         pallet_types_count[pallet_type] += 1
     
-    # Tworzenie komponentu statystyk
-    stats = [
-        html.P(f"Łączna liczba palet: {total_pallets}"),
-        html.P(f"Łączna masa: {total_weight} kg"),
-        html.P(f"Łączny LDM: {total_ldm:.2f}"),
-        html.Hr(),
-        html.P("Liczba palet według typu:"),
-        html.Ul([
-            html.Li(f"{ptype}: {count} szt.")
-            for ptype, count in pallet_types_count.items()
-        ])
-    ]
+    # Tworzenie komponentu statystyk w formie tabeli
+    stats_table = dbc.Table(
+        [
+            html.Thead(
+                html.Tr([
+                    html.Th("Parametr"),
+                    html.Th("Wartość")
+                ])
+            ),
+            html.Tbody([
+                html.Tr([html.Td("Liczba palet"), html.Td(f"{total_pallets}")]),
+                html.Tr([html.Td("Łączna masa"), html.Td(f"{total_weight} kg")]),
+                html.Tr([html.Td("Łączny LDM"), html.Td(f"{total_ldm:.2f}")])
+            ])
+        ],
+        striped=True,
+        bordered=True,
+        hover=True,
+        size="sm",
+        className="mb-0"
+    )
     
-    return html.Div(stats) 
+    # Dodanie wykresu typu palet
+    pallet_types_stats = html.Div([
+        html.H6("Rozkład typów palet:", className="mt-3 mb-2"),
+        dbc.Table(
+            [
+                html.Thead(
+                    html.Tr([
+                        html.Th("Typ"),
+                        html.Th("Ilość")
+                    ])
+                ),
+                html.Tbody([
+                    html.Tr([html.Td(ptype), html.Td(count)])
+                    for ptype, count in pallet_types_count.items()
+                ])
+            ],
+            striped=True,
+            bordered=True,
+            hover=True,
+            size="sm",
+            className="mb-0"
+        )
+    ])
+    
+    return html.Div([stats_table, pallet_types_stats]) 
