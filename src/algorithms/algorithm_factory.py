@@ -8,8 +8,8 @@ from src.algorithms.base_algorithm import LoadingAlgorithm
 from src.algorithms.xz_axis_loading import XZAxisLoading
 from src.algorithms.x_distribution import XDistributionLoading
 from src.algorithms.y_distribution import YDistributionLoading
-# Import algorytmu uczenia ze wzmocnieniem w przyszłości
-# from src.algorithms.reinforcement_learning import ReinforcementLearningLoading
+# Import algorytmu uczenia ze wzmocnieniem
+from src.algorithms.reinforcement_learning import ReinforcementLearningLoading
 
 
 def get_algorithm(algorithm_name: str, config: Optional[Dict[str, Any]] = None) -> LoadingAlgorithm:
@@ -31,7 +31,7 @@ def get_algorithm(algorithm_name: str, config: Optional[Dict[str, Any]] = None) 
         "XZ_Axis_Loading": XZAxisLoading,
         "X_Distribution": XDistributionLoading,
         "Y_Distribution": YDistributionLoading,
-        # "RL_Loading": ReinforcementLearningLoading
+        "RL_Loading": ReinforcementLearningLoading
     }
     
     # Sprawdzenie, czy algorytm istnieje

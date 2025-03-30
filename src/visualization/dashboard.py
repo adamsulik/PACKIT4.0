@@ -8,6 +8,7 @@ import dash
 from dash import html, dcc, dash_table
 import dash_bootstrap_components as dbc
 from dash.dependencies import Input, Output, State
+import plotly.graph_objs as go
 
 from src.config import PALLET_TYPES
 from src.utils.data_loader import generate_pallet_sets
@@ -27,7 +28,7 @@ def create_layout() -> html.Div:
     return html.Div([
         # Nagłówek
         html.Div([
-            html.H1("PACKIT 4.0 - Optymalizacja załadunku palet", className="display-4 text-center"),
+            html.H1("PACKIT 4.0 - Optymalizacja załadunku palet transportowych z wykorzystaniem metod uczenia maszynowego", className="display-4 text-center"),
             html.Hr(),
             html.P(
                 "System do optymalizacji załadunku palet transportowych z wykorzystaniem metod uczenia maszynowego",
@@ -73,6 +74,65 @@ def create_layout() -> html.Div:
                             
                             # Opis wybranego algorytmu
                             html.Div(id="algorithm-description", className="alert alert-info mb-4"),
+                            
+                            # Panel do uczenia ze wzmocnieniem (początkowo ukryty)
+                            html.Div([
+                                html.H5("Uczenie ze wzmocnieniem:", className="mb-2"),
+                                html.Div([
+                                    # Informacje o modelu
+                                    html.Div([
+                                        html.P("Status modelu: ", className="mb-1"),
+                                        html.Div(id="rl-model-status", className="alert alert-secondary py-1")
+                                    ], className="mb-2"),
+                                    
+                                    # Liczba epizodów treningowych
+                                    html.Div([
+                                        html.Label("Liczba epizodów:", className="mr-2"),
+                                        dcc.Input(
+                                            id="rl-episodes-input",
+                                            type="number",
+                                            min=100,
+                                            max=10000,
+                                            step=100,
+                                            value=1000,
+                                            className="form-control"
+                                        )
+                                    ], className="mb-2"),
+                                    
+                                    # Przyciski do treningu
+                                    html.Div([
+                                        dbc.Button(
+                                            "Trenuj model",
+                                            id="train-rl-button",
+                                            color="success",
+                                            className="mr-2"
+                                        ),
+                                        dbc.Button(
+                                            "Zatrzymaj trening",
+                                            id="stop-rl-button",
+                                            color="danger",
+                                            disabled=True
+                                        )
+                                    ], className="mb-3"),
+                                    
+                                    # Postęp treningu
+                                    html.Div([
+                                        html.Label("Postęp treningu:"),
+                                        dbc.Progress(
+                                            id="rl-training-progress",
+                                            value=0,
+                                            className="mb-3"
+                                        )
+                                    ]),
+                                    
+                                    # Wykres nagród podczas treningu
+                                    dcc.Graph(
+                                        id="rl-rewards-graph",
+                                        config={"displayModeBar": False},
+                                        style={"height": "200px"}
+                                    )
+                                ])
+                            ], id="rl-training-panel", style={"display": "none"}),
                             
                             # Przycisk uruchomienia algorytmu
                             dbc.Button(
@@ -170,6 +230,76 @@ def create_layout() -> html.Div:
     ])
 
 
+# Dodaj nowe funkcje dla uczenia ze wzmocnieniem
+
+def create_rl_rewards_graph(rewards: List[float] = None) -> dict:
+    """
+    Tworzy wykres nagród podczas treningu RL.
+    
+    Args:
+        rewards: Lista nagród z kolejnych epizodów treningu
+        
+    Returns:
+        dict: Dane wykresu w formacie wymaganym przez dcc.Graph
+    """
+    # Dodanie danych do wykresu
+    data = []
+    
+    if rewards:
+        # Nagroda
+        data.append({
+            'y': rewards,
+            'mode': 'lines',
+            'name': 'Nagroda',
+            'line': {'color': 'rgba(50, 171, 96, 0.7)', 'width': 2}
+        })
+        
+        # Dodaj linię trendu (średnia ruchoma)
+        window_size = min(20, len(rewards))
+        if window_size > 0:
+            moving_avg = [sum(rewards[max(0, i-window_size):i+1]) / min(i+1, window_size) 
+                         for i in range(len(rewards))]
+            
+            data.append({
+                'y': moving_avg,
+                'mode': 'lines',
+                'name': 'Średnia',
+                'line': {'color': 'rgba(184, 44, 86, 0.8)', 'width': 2}
+            })
+    
+    # Konfiguracja layoutu
+    layout = {
+        'title': None,
+        'xaxis': {'title': 'Epizod'},
+        'yaxis': {'title': 'Nagroda'},
+        'margin': {'l': 0, 'r': 0, 't': 0, 'b': 0},
+        'legend': {'orientation': 'h', 'yanchor': 'bottom', 'y': 1.02, 'xanchor': 'right', 'x': 1},
+        'height': 200
+    }
+    
+    return {'data': data, 'layout': layout}
+
+
+def create_rl_model_status(model_info: Dict[str, Any] = None) -> html.Div:
+    """
+    Tworzy komponent statusu modelu RL.
+    
+    Args:
+        model_info: Informacje o modelu
+        
+    Returns:
+        html.Div: Komponent z informacjami o modelu
+    """
+    if not model_info:
+        return html.P("Brak wytrenowanego modelu", className="mb-0")
+    
+    return html.Div([
+        html.P(f"Epizody treningowe: {model_info['training_episodes']}", className="mb-0"),
+        html.P(f"Współczynnik eksploracji: {model_info['exploration_rate']:.4f}", className="mb-0"),
+        html.P(f"Rozmiar tablicy Q: {model_info['q_table_size']} stanów", className="mb-0")
+    ])
+
+
 def create_pallet_controls() -> html.Div:
     """
     Tworzy panel kontrolny do zarządzania widocznością palet w wizualizacji 3D.
@@ -199,24 +329,25 @@ def generate_pallet_visibility_controls(pallets: List[Dict[str, Any]]) -> List[d
     """
     controls = []
     
-    # Grupowanie palet według typu
+    # Grupowanie palet według typów
     pallet_types = {}
     for pallet in pallets:
-        pallet_type = pallet["pallet_type"]
+        pallet_type = pallet.get("pallet_type", "Nieznany")
         if pallet_type not in pallet_types:
             pallet_types[pallet_type] = []
-        pallet_types[pallet_type].append(pallet)
+        pallet_types[pallet_type].append(pallet["pallet_id"])
     
     # Tworzenie kontrolek dla każdego typu palet
-    for pallet_type, type_pallets in pallet_types.items():
+    for pallet_type, pallet_ids in pallet_types.items():
         controls.append(
             dbc.Checklist(
                 options=[
-                    {"label": f"{pallet_type} ({len(type_pallets)} palet)", "value": pallet_type}
+                    {"label": f"{pallet_type} ({len(pallet_ids)})", "value": "all"}
+                ] + [
+                    {"label": pid, "value": pid} for pid in pallet_ids
                 ],
-                value=[pallet_type],
-                id=f"visibility-{pallet_type}",
-                switch=True,
+                value=["all"] + pallet_ids,
+                id=f"visibility-{pallet_type.lower().replace(' ', '-')}",
                 className="mb-2"
             )
         )

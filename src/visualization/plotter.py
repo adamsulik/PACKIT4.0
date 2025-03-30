@@ -5,6 +5,7 @@ Moduł do tworzenia wizualizacji 3D załadunku palet.
 from typing import List, Dict, Any, Optional, Union
 import plotly.graph_objects as go
 import numpy as np
+from dash import dcc
 
 from src.data.pallet import Pallet
 from src.data.trailer import Trailer
@@ -38,6 +39,233 @@ def plot_3d_trailer_with_pallets(pallets: List[Pallet], trailer: Optional[Traile
     
     # Konfiguracja wyglądu
     _configure_figure_layout(fig, trailer)
+    
+    return fig
+
+
+def create_3d_visualization(trailer: Trailer, pallets: List[Pallet]) -> dict:
+    """
+    Tworzy interaktywną wizualizację 3D naczepy z załadowanymi paletami.
+    Wersja dostosowana do nowego interfejsu aplikacji.
+    
+    Args:
+        trailer: Naczepa z załadunkiem
+        pallets: Lista załadowanych palet
+        
+    Returns:
+        dict: Dane dla komponentu dcc.Graph
+    """
+    # Tworzenie figury
+    fig = go.Figure()
+    
+    # Dodanie naczepy
+    _add_trailer_to_figure(fig, trailer)
+    
+    # Dodanie palet
+    for pallet in pallets:
+        _add_pallet_to_figure(fig, pallet)
+    
+    # Konfiguracja wyglądu
+    _configure_figure_layout(fig, trailer)
+    
+    # Dodanie tytułu z informacją o liczbie załadowanych palet
+    total_pallets = len(trailer.loaded_pallets)
+    loaded_pallets_count = len(pallets)
+    loading_ratio = (loaded_pallets_count / total_pallets) * 100 if total_pallets > 0 else 0
+    
+    fig.update_layout(
+        title=f"Załadowano {loaded_pallets_count} palet",
+        margin=dict(l=0, r=0, t=40, b=0)
+    )
+    
+    # Konwertuj go.Figure na słownik
+    return fig.to_dict()
+
+
+def create_weight_distribution_plot(trailer: Trailer) -> dict:
+    """
+    Tworzy wykres rozkładu masy w naczepie.
+    
+    Args:
+        trailer: Naczepa z załadunkiem
+        
+    Returns:
+        dict: Dane dla komponentu dcc.Graph
+    """
+    # Pobierz rozkład masy
+    weight_dist = trailer.weight_distribution
+    
+    # Utwórz wykres słupkowy
+    fig = go.Figure()
+    
+    # Dodaj słupki dla różnych stref
+    fig.add_trace(go.Bar(
+        x=["Przód", "Tył", "Lewo", "Prawo"],
+        y=[weight_dist["front"], weight_dist["back"], weight_dist["left"], weight_dist["right"]],
+        marker_color=['rgba(50, 171, 96, 0.7)', 'rgba(50, 171, 96, 0.7)', 
+                     'rgba(128, 128, 255, 0.7)', 'rgba(128, 128, 255, 0.7)'],
+        name="Rozkład masy"
+    ))
+    
+    # Skonfiguruj układ
+    fig.update_layout(
+        title="Rozkład masy w naczepie",
+        yaxis_title="Masa (kg)",
+        xaxis_title="Strefa naczepy",
+        bargap=0.2,
+        bargroupgap=0.1,
+        height=300,
+        margin=dict(l=40, r=20, t=60, b=40),
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)'
+    )
+    
+    # Dodaj adnotacje z wartościami procentowymi
+    front_back_ratio = weight_dist["front"] / (weight_dist["front"] + weight_dist["back"]) if (weight_dist["front"] + weight_dist["back"]) > 0 else 0
+    left_right_ratio = weight_dist["left"] / (weight_dist["left"] + weight_dist["right"]) if (weight_dist["left"] + weight_dist["right"]) > 0 else 0
+    
+    fig.add_annotation(
+        x=0.5,
+        y=1.05,
+        xref="paper",
+        yref="paper",
+        text=f"Rozkład przód-tył: {front_back_ratio:.2f} (optymalnie: 0.6)",
+        showarrow=False,
+        font=dict(size=12)
+    )
+    
+    fig.add_annotation(
+        x=0.5,
+        y=0.95,
+        xref="paper",
+        yref="paper",
+        text=f"Rozkład lewo-prawo: {left_right_ratio:.2f} (optymalnie: 0.5)",
+        showarrow=False,
+        font=dict(size=12)
+    )
+    
+    # Konwertuj go.Figure na słownik
+    return fig.to_dict()
+
+
+def create_weight_distribution_chart(pallets: List[Pallet], trailer: Optional[Trailer] = None) -> go.Figure:
+    """
+    Tworzy wykres rozkładu masy w naczepie.
+    
+    Args:
+        pallets: Lista załadowanych palet
+        trailer: Naczepa (opcjonalnie)
+        
+    Returns:
+        go.Figure: Figura z wykresem rozkładu masy
+    """
+    # Jeśli nie podano naczepy, utwórz domyślną
+    if trailer is None:
+        trailer = Trailer()
+    
+    # Aktualizacja rozkładu masy
+    trailer.loaded_pallets = pallets
+    trailer._update_weight_distribution()
+    
+    # Pobranie danych o rozkładzie masy
+    weight_data = trailer.weight_distribution
+    
+    # Tworzenie wykresu słupkowego dla rozkładu masy
+    fig = go.Figure()
+    
+    # Rozkład bok do boku
+    fig.add_trace(go.Bar(
+        x=["Lewa strona", "Prawa strona"],
+        y=[weight_data["left"], weight_data["right"]],
+        text=[f"{weight_data['left']:.1f} kg", f"{weight_data['right']:.1f} kg"],
+        textposition="auto",
+        name="Rozkład bok do boku",
+        marker_color=["rgba(31, 119, 180, 0.8)", "rgba(255, 127, 14, 0.8)"]
+    ))
+    
+    # Rozkład przód-tył
+    fig.add_trace(go.Bar(
+        x=["Przód", "Tył"],
+        y=[weight_data["front"], weight_data["back"]],
+        text=[f"{weight_data['front']:.1f} kg", f"{weight_data['back']:.1f} kg"],
+        textposition="auto",
+        name="Rozkład przód-tył",
+        marker_color=["rgba(44, 160, 44, 0.8)", "rgba(214, 39, 40, 0.8)"],
+        visible=False
+    ))
+    
+    # Dodanie przycisków przełączających między rozkładami
+    fig.update_layout(
+        updatemenus=[
+            dict(
+                type="buttons",
+                direction="right",
+                buttons=[
+                    dict(
+                        label="Bok do boku",
+                        method="update",
+                        args=[{"visible": [True, False]}]
+                    ),
+                    dict(
+                        label="Przód-tył",
+                        method="update",
+                        args=[{"visible": [False, True]}]
+                    )
+                ],
+                pad={"r": 10, "t": 10},
+                showactive=True,
+                x=0.1,
+                y=1.15,
+                xanchor="left",
+                yanchor="top"
+            )
+        ],
+        title="Rozkład masy w naczepie",
+        yaxis_title="Masa (kg)",
+        template="plotly_white"
+    )
+    
+    return fig
+
+
+def create_loading_efficiency_chart(pallets: List[Pallet], trailer: Optional[Trailer] = None) -> go.Figure:
+    """
+    Tworzy wykres efektywności załadunku.
+    
+    Args:
+        pallets: Lista załadowanych palet
+        trailer: Naczepa (opcjonalnie)
+        
+    Returns:
+        go.Figure: Figura z wykresem efektywności załadunku
+    """
+    # Jeśli nie podano naczepy, utwórz domyślną
+    if trailer is None:
+        trailer = Trailer()
+    
+    # Obliczenie metryk efektywności
+    trailer.loaded_pallets = pallets
+    efficiency = trailer.get_loading_efficiency()
+    
+    # Tworzenie wykresu słupkowego dla metryk efektywności
+    fig = go.Figure()
+    
+    # Dodanie słupków
+    fig.add_trace(go.Bar(
+        x=["Wykorzystanie przestrzeni", "Wykorzystanie ładowności"],
+        y=[efficiency["space_utilization"], efficiency["weight_utilization"]],
+        text=[f"{efficiency['space_utilization']:.1f}%", f"{efficiency['weight_utilization']:.1f}%"],
+        textposition="auto",
+        marker_color=["rgba(31, 119, 180, 0.8)", "rgba(255, 127, 14, 0.8)"]
+    ))
+    
+    # Konfiguracja wykresu
+    fig.update_layout(
+        title="Efektywność załadunku",
+        yaxis_title="Procent wykorzystania (%)",
+        template="plotly_white",
+        yaxis=dict(range=[0, 100])
+    )
     
     return fig
 
@@ -408,126 +636,4 @@ def _configure_figure_layout(fig: go.Figure, trailer: Trailer) -> None:
             bgcolor="rgba(255, 255, 255, 0.8)"
         ),
         template="plotly_white"
-    )
-
-
-def create_weight_distribution_chart(pallets: List[Pallet], trailer: Optional[Trailer] = None) -> go.Figure:
-    """
-    Tworzy wykres rozkładu masy w naczepie.
-    
-    Args:
-        pallets: Lista załadowanych palet
-        trailer: Naczepa (opcjonalnie)
-        
-    Returns:
-        go.Figure: Figura z wykresem rozkładu masy
-    """
-    # Jeśli nie podano naczepy, utwórz domyślną
-    if trailer is None:
-        trailer = Trailer()
-    
-    # Aktualizacja rozkładu masy
-    trailer.loaded_pallets = pallets
-    trailer._update_weight_distribution()
-    
-    # Pobranie danych o rozkładzie masy
-    weight_data = trailer.weight_distribution
-    
-    # Tworzenie wykresu słupkowego dla rozkładu masy
-    fig = go.Figure()
-    
-    # Rozkład bok do boku
-    fig.add_trace(go.Bar(
-        x=["Lewa strona", "Prawa strona"],
-        y=[weight_data["left"], weight_data["right"]],
-        text=[f"{weight_data['left']:.1f} kg", f"{weight_data['right']:.1f} kg"],
-        textposition="auto",
-        name="Rozkład bok do boku",
-        marker_color=["rgba(31, 119, 180, 0.8)", "rgba(255, 127, 14, 0.8)"]
-    ))
-    
-    # Rozkład przód-tył
-    fig.add_trace(go.Bar(
-        x=["Przód", "Tył"],
-        y=[weight_data["front"], weight_data["back"]],
-        text=[f"{weight_data['front']:.1f} kg", f"{weight_data['back']:.1f} kg"],
-        textposition="auto",
-        name="Rozkład przód-tył",
-        marker_color=["rgba(44, 160, 44, 0.8)", "rgba(214, 39, 40, 0.8)"],
-        visible=False
-    ))
-    
-    # Dodanie przycisków przełączających między rozkładami
-    fig.update_layout(
-        updatemenus=[
-            dict(
-                type="buttons",
-                direction="right",
-                buttons=[
-                    dict(
-                        label="Bok do boku",
-                        method="update",
-                        args=[{"visible": [True, False]}]
-                    ),
-                    dict(
-                        label="Przód-tył",
-                        method="update",
-                        args=[{"visible": [False, True]}]
-                    )
-                ],
-                pad={"r": 10, "t": 10},
-                showactive=True,
-                x=0.1,
-                y=1.15,
-                xanchor="left",
-                yanchor="top"
-            )
-        ],
-        title="Rozkład masy w naczepie",
-        yaxis_title="Masa (kg)",
-        template="plotly_white"
-    )
-    
-    return fig
-
-
-def create_loading_efficiency_chart(pallets: List[Pallet], trailer: Optional[Trailer] = None) -> go.Figure:
-    """
-    Tworzy wykres efektywności załadunku.
-    
-    Args:
-        pallets: Lista załadowanych palet
-        trailer: Naczepa (opcjonalnie)
-        
-    Returns:
-        go.Figure: Figura z wykresem efektywności załadunku
-    """
-    # Jeśli nie podano naczepy, utwórz domyślną
-    if trailer is None:
-        trailer = Trailer()
-    
-    # Obliczenie metryk efektywności
-    trailer.loaded_pallets = pallets
-    efficiency = trailer.get_loading_efficiency()
-    
-    # Tworzenie wykresu słupkowego dla metryk efektywności
-    fig = go.Figure()
-    
-    # Dodanie słupków
-    fig.add_trace(go.Bar(
-        x=["Wykorzystanie przestrzeni", "Wykorzystanie ładowności"],
-        y=[efficiency["space_utilization"], efficiency["weight_utilization"]],
-        text=[f"{efficiency['space_utilization']:.1f}%", f"{efficiency['weight_utilization']:.1f}%"],
-        textposition="auto",
-        marker_color=["rgba(31, 119, 180, 0.8)", "rgba(255, 127, 14, 0.8)"]
-    ))
-    
-    # Konfiguracja wykresu
-    fig.update_layout(
-        title="Efektywność załadunku",
-        yaxis_title="Procent wykorzystania (%)",
-        template="plotly_white",
-        yaxis=dict(range=[0, 100])
-    )
-    
-    return fig 
+    ) 
