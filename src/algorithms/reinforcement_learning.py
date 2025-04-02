@@ -457,6 +457,139 @@ class ReinforcementLearningAgent:
             print(f"Błąd podczas wczytywania modelu: {e}")
             return False
 
+    def train_with_stacking_prevention(self, episodes: int, pallet_sets: List[List[Pallet]], 
+                           max_steps_per_episode: int = 100, save_interval: int = 50, 
+                           callback=None) -> Dict[str, List[float]]:
+        """
+        Przeprowadza trening agenta z zapobieganiem piętrowania palet.
+        
+        Args:
+            episodes: Liczba epizodów treningowych
+            pallet_sets: Lista zestawów palet do treningu
+            max_steps_per_episode: Maksymalna liczba kroków w jednym epizodzie
+            save_interval: Co ile epizodów zapisywać model
+            callback: Opcjonalna funkcja zwrotna do raportowania postępu
+            
+        Returns:
+            Dict: Słownik z historią nagrody i efektywności
+        """
+        rewards_history = []
+        efficiency_history = []
+        
+        # Zoptymalizowane: predefiniujemy rotacje dla szybszego dostępu
+        rotation_options = [0, 90]
+        
+        # Zoptymalizowane: Ustaw rzadsze wywołania callbacka dla szybszego treningu
+        callback_interval = min(10, max(1, episodes // 20))  # Co najmniej co 10 epizodów, ale częściej dla małej liczby epizodów
+        
+        # Zoptymalizowane: Rzadziej zapisuj model jeśli mamy dużo epizodów
+        actual_save_interval = min(save_interval, max(10, episodes // 10))
+        
+        start_time = time.time()
+        
+        for episode in range(episodes):
+            # Wybierz losowy zestaw palet
+            pallets = random.choice(pallet_sets).copy()
+            random.shuffle(pallets)  # Losowa kolejność palet
+            
+            # Zresetuj stan środowiska
+            trailer = Trailer()
+            total_reward = 0
+            
+            # Śledzenie zajętych pozycji na podłodze (zapobieganie piętrowaniu)
+            occupied_floor_positions = set()
+            
+            # Wykonaj kroki w epizodzie
+            for step in range(min(len(pallets), max_steps_per_episode)):
+                pallet = pallets[step]
+                
+                # Pobierz stan
+                state = self.get_state_representation(trailer, pallet)
+                
+                # Pobierz dostępne pozycje
+                available_positions = trailer.get_available_positions(pallet)
+                
+                # Filtrujemy pozycje, aby uniknąć piętrowania podczas treningu
+                available_positions = [pos for pos in available_positions if 
+                                     (pos[0], pos[1]) not in occupied_floor_positions]
+                
+                if not available_positions:
+                    continue  # Brak dostępnych pozycji, przejdź do następnej palety
+                
+                # Wybierz akcję
+                position, rotation = self.get_action(state, available_positions, rotation_options, training=True)
+                
+                # Wykonaj akcję
+                loaded_successfully = False
+                if position:
+                    pallet.set_position(*position)
+                    if pallet.rotation != rotation:
+                        pallet.rotate()
+                    loaded_successfully = trailer.add_pallet(pallet)
+                    
+                    # Jeśli paleta została załadowana, oznacz pozycję jako zajętą
+                    if loaded_successfully:
+                        occupied_floor_positions.add((position[0], position[1]))
+                
+                # Oblicz nagrodę
+                reward = self.calculate_reward(trailer, loaded_successfully)
+                total_reward += reward
+                
+                # Pobierz następny stan
+                if step < len(pallets) - 1:
+                    next_pallet = pallets[step + 1]
+                    next_state = self.get_state_representation(trailer, next_pallet)
+                else:
+                    next_state = state  # Ostatni stan w epizodzie
+                
+                # Aktualizuj tabelę Q
+                self.update_q_table(state, (position, rotation), reward, next_state)
+                
+                # Jeśli nie udało się załadować, przejdź do następnej palety
+                if not loaded_successfully:
+                    continue
+            
+            # Aktualizacja współczynnika eksploracji
+            self.exploration_rate = max(self.exploration_min, 
+                                        self.exploration_rate * self.exploration_decay)
+            
+            # Zapisz historię
+            rewards_history.append(total_reward)
+            efficiency_history.append(trailer.get_loading_efficiency()["space_utilization"])
+            
+            # Raportowanie postępu - zoptymalizowane, aby było wywoływane rzadziej
+            if callback and (episode % callback_interval == 0 or episode == episodes - 1):
+                result = callback(episode, episodes, total_reward, self.exploration_rate, 
+                        trailer.get_loading_efficiency())
+                # Sprawdź czy callback zwrócił False (zatrzymanie treningu)
+                if result is False:
+                    print(f"Trening zatrzymany na epiziodzie {episode}/{episodes}")
+                    break  # Przerwij trening
+            
+            # Zapisz model - rzadziej dla szybszego treningu
+            if (episode + 1) % actual_save_interval == 0 or episode == episodes - 1:
+                self.save_model()
+                
+            self.training_episodes += 1
+            
+            # Wyświetl postęp co 10% treningu
+            if episode % max(1, episodes // 10) == 0 or episode == episodes - 1:
+                elapsed = time.time() - start_time
+                estimated_total = elapsed / (episode + 1) * episodes if episode > 0 else 0
+                remaining = estimated_total - elapsed
+                print(f"Trening: {episode + 1}/{episodes} ({(episode + 1)/episodes*100:.1f}%) " +
+                      f"Czas: {elapsed:.1f}s, Pozostało: {remaining:.1f}s")
+        
+        # Zapisz finalny model
+        self.save_model()
+        
+        print(f"Trening zakończony. Czas: {time.time() - start_time:.1f}s")
+        
+        return {
+            "rewards": rewards_history,
+            "efficiency": efficiency_history
+        }
+
 
 class ReinforcementLearningLoading(LoadingAlgorithm):
     """
@@ -520,10 +653,9 @@ class ReinforcementLearningLoading(LoadingAlgorithm):
             # Pobranie dostępnych pozycji z uwzględnieniem zajętych miejsc na podłodze
             available_positions = self.trailer.get_available_positions(pallet)
             
-            # Filtrujemy pozycje, aby uniknąć piętrowania - tylko jeśli nie jesteśmy w trybie treningowym
-            if not self.training_mode:
-                available_positions = [pos for pos in available_positions if 
-                                     (pos[0], pos[1]) not in occupied_floor_positions]
+            # Filtrujemy pozycje, aby uniknąć piętrowania - zawsze, niezależnie od trybu
+            available_positions = [pos for pos in available_positions if 
+                                 (pos[0], pos[1]) not in occupied_floor_positions]
             
             if not available_positions:
                 continue  # Brak dostępnych pozycji, przejdź do następnej palety
@@ -593,7 +725,7 @@ class ReinforcementLearningLoading(LoadingAlgorithm):
             return True
         
         # Przeprowadzenie treningu
-        training_results = self.agent.train(
+        training_results = self.agent.train_with_stacking_prevention(
             episodes=episodes,
             pallet_sets=pallet_sets,
             max_steps_per_episode=max_steps_per_episode,
