@@ -12,6 +12,7 @@ from dash.exceptions import PreventUpdate
 import plotly.graph_objs as go
 import threading
 import time
+import glob
 from typing import Dict, List, Any, Optional, Tuple
 
 from src.visualization.dashboard import (
@@ -138,15 +139,17 @@ def update_rl_model_info(algorithm_name: str) -> Tuple[html.Div, go.Figure]:
     ],
     [
         State("rl-episodes-input", "value"),
-        State("algorithm-dropdown", "value")
+        State("algorithm-dropdown", "value"),
+        State("rl-model-dropdown", "value")  # Dodanie stanu dropdown modelu RL
     ],
     prevent_initial_call=True
 )
 def handle_rl_training_buttons(
-    train_clicks: int, 
-    stop_clicks: int, 
-    episodes: int, 
-    algorithm_name: str
+    train_clicks: int,
+    stop_clicks: int,
+    episodes: int,
+    algorithm_name: str,
+    rl_model_name: str
 ) -> Tuple[bool, bool, int, str]:
     """
     Obsługuje przyciski do treningu modelu RL.
@@ -156,11 +159,13 @@ def handle_rl_training_buttons(
         stop_clicks: Liczba kliknięć przycisku zatrzymania
         episodes: Liczba epizodów treningowych
         algorithm_name: Nazwa wybranego algorytmu
+        rl_model_name: Nazwa wybranego modelu RL
         
     Returns:
         Tuple: Stany przycisków i wartość paska postępu
     """
     ctx = dash.callback_context
+    
     if not ctx.triggered:
         raise PreventUpdate
     
@@ -168,7 +173,7 @@ def handle_rl_training_buttons(
     
     if button_id == "train-rl-button" and not app_state["rl_training_active"]:
         # Rozpocznij trening w osobnym wątku
-        start_rl_training(episodes, algorithm_name)
+        start_rl_training(episodes, algorithm_name, rl_model_name)
         return True, False, 0, "0%"
     
     elif button_id == "stop-rl-button" and app_state["rl_training_active"]:
@@ -182,12 +187,8 @@ def handle_rl_training_buttons(
         
         return False, True, progress, f"{progress}% (Przerwano)"
     
-    # Oblicz aktualny postęp
-    if app_state["rl_training_active"]:
-        progress = int((app_state["rl_current_episode"] / app_state["rl_total_episodes"]) * 100)
-        return True, False, progress, f"{progress}%"
-    else:
-        return False, True, 100, "Gotowe"
+    # Domyślny stan przycisków
+    return False, True, 0, "Gotowe"
 
 
 @app.callback(
@@ -240,6 +241,48 @@ def update_pallet_set(pallet_set_name: str) -> Tuple[List[Dict[str, Any]], html.
     return table_data, stats
 
 
+# Funkcja do listowania plików modeli RL
+def list_rl_models():
+    """
+    Listuje dostępne modele uczenia ze wzmocnieniem (pliki .pkl) w katalogu models.
+    
+    Returns:
+        List[Dict]: Lista słowników z opcjami dla dropdown
+    """
+    models_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'models')
+    model_files = glob.glob(os.path.join(models_dir, '*.pkl'))
+    
+    # Lista opcji dla dropdown
+    options = [{"label": "Domyślny model (rl_model.pkl)", "value": "default"}]
+    
+    for model_path in model_files:
+        # Pobierz tylko nazwę pliku bez ścieżki i dodaj jako opcję
+        model_name = os.path.basename(model_path)
+        if model_name != "rl_model.pkl":  # Pomiń domyślny model
+            options.append({"label": model_name, "value": model_name})
+    
+    return options
+
+
+# Callback do odświeżania listy dostępnych modeli RL
+@app.callback(
+    Output("rl-model-dropdown", "options"),
+    Input("refresh-rl-models-button", "n_clicks"),
+    prevent_initial_call=False
+)
+def refresh_rl_models(n_clicks):
+    """
+    Odświeża listę dostępnych modeli RL.
+    
+    Args:
+        n_clicks: Liczba kliknięć przycisku odświeżania
+        
+    Returns:
+        List[Dict]: Lista opcji dla dropdown
+    """
+    return list_rl_models()
+
+
 @app.callback(
     [
         Output("visualization-container", "children"),
@@ -250,11 +293,12 @@ def update_pallet_set(pallet_set_name: str) -> Tuple[List[Dict[str, Any]], html.
     Input("run-algorithm-button", "n_clicks"),
     [
         State("pallet-set-dropdown", "value"),
-        State("algorithm-dropdown", "value")
+        State("algorithm-dropdown", "value"),
+        State("rl-model-dropdown", "value")  # Dodanie stanu dropdown modelu RL
     ],
     prevent_initial_call=True
 )
-def run_algorithm(n_clicks: int, pallet_set_name: str, algorithm_name: str) -> Tuple[dcc.Graph, dcc.Graph, html.Div, html.Div]:
+def run_algorithm(n_clicks: int, pallet_set_name: str, algorithm_name: str, rl_model_name: str = None) -> Tuple[dcc.Graph, dcc.Graph, html.Div, html.Div]:
     """
     Uruchamia wybrany algorytm załadunku i aktualizuje wizualizacje.
     
@@ -262,6 +306,7 @@ def run_algorithm(n_clicks: int, pallet_set_name: str, algorithm_name: str) -> T
         n_clicks: Liczba kliknięć przycisku
         pallet_set_name: Nazwa wybranego zestawu palet
         algorithm_name: Nazwa wybranego algorytmu
+        rl_model_name: Nazwa wybranego modelu RL (opcjonalnie)
         
     Returns:
         Tuple: Komponenty wizualizacji
@@ -286,6 +331,14 @@ def run_algorithm(n_clicks: int, pallet_set_name: str, algorithm_name: str) -> T
         
         # Wyłączamy tryb treningowy, aby używać wyuczonego modelu
         algorithm.training_mode = False
+        
+        # Ustawienie ścieżki do modelu, jeśli wybrano niestandardowy model
+        if rl_model_name and rl_model_name != "default":
+            models_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'models')
+            model_path = os.path.join(models_dir, rl_model_name)
+            algorithm.agent.model_path = model_path
+            # Załaduj wybrany model
+            algorithm.agent.load_model()
     
     # Uruchomienie algorytmu
     try:
@@ -371,13 +424,14 @@ def run_algorithm(n_clicks: int, pallet_set_name: str, algorithm_name: str) -> T
         return html.Div(f"Wystąpił błąd: {str(e)}"), html.Div(), html.Div(), html.Div()
 
 
-def start_rl_training(episodes: int, algorithm_name: str) -> None:
+def start_rl_training(episodes: int, algorithm_name: str, rl_model_name: str = None) -> None:
     """
     Rozpoczyna trening modelu RL w osobnym wątku.
     
     Args:
         episodes: Liczba epizodów treningowych
         algorithm_name: Nazwa algorytmu
+        rl_model_name: Nazwa wybranego modelu RL (opcjonalnie)
     """
     # Resetowanie stanu
     app_state["rl_training_active"] = True
@@ -405,6 +459,19 @@ def start_rl_training(episodes: int, algorithm_name: str) -> None:
         if not isinstance(algorithm, ReinforcementLearningLoading):
             app_state["rl_training_active"] = False
             return
+        
+        # Ustawienie ścieżki do modelu, jeśli wybrano niestandardowy model
+        if rl_model_name and rl_model_name != "default":
+            models_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'models')
+            model_path = os.path.join(models_dir, rl_model_name)
+            algorithm.agent.model_path = model_path
+            
+            # Jeśli model nie istnieje, zostanie utworzony nowy
+            try:
+                algorithm.agent.load_model()
+                print(f"Załadowano istniejący model: {model_path}")
+            except Exception as e:
+                print(f"Utworzono nowy model: {model_path} (błąd: {e})")
         
         # Optymalizacja: Dodajemy limit czasu dla treningu
         max_training_time = 300  # Maksymalnie 5 minut treningu

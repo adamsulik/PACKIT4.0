@@ -5,7 +5,7 @@ Moduł zawierający fabrykę algorytmów załadunku palet.
 from typing import Dict, Any, Optional
 
 from src.algorithms.base_algorithm import LoadingAlgorithm
-from src.algorithms.xz_axis_loading import XZAxisLoading
+from src.algorithms.xy_axis_loading import XYAxisLoading
 from src.algorithms.x_distribution import XDistributionLoading
 from src.algorithms.y_distribution import YDistributionLoading
 # Import algorytmu uczenia ze wzmocnieniem
@@ -28,7 +28,7 @@ def get_algorithm(algorithm_name: str, config: Optional[Dict[str, Any]] = None) 
     """
     # Mapowanie nazw algorytmów do klas
     algorithm_map = {
-        "XZ_Axis_Loading": XZAxisLoading,
+        "XY_Axis_Loading": XYAxisLoading,
         "X_Distribution": XDistributionLoading,
         "Y_Distribution": YDistributionLoading,
         "RL_Loading": ReinforcementLearningLoading
@@ -45,14 +45,16 @@ def get_algorithm(algorithm_name: str, config: Optional[Dict[str, Any]] = None) 
 
 def list_available_algorithms() -> Dict[str, str]:
     """
-    Zwraca listę dostępnych algorytmów wraz z ich opisami.
+    Zwraca listę dostępnych algorytmów załadunku.
     
     Returns:
-        Dict[str, str]: Słownik mapujący nazwy algorytmów na ich opisy
+        Dict[str, str]: Słownik zawierający nazwę algorytmu i jego opis
     """
-    return {
-        "XZ_Axis_Loading": "Metoda załadunku wzdłuż osi X oraz osi Z, która optymalizuje wykorzystanie przestrzeni naczepy.",
-        "X_Distribution": "Algorytm załadunku w oparciu o rozkład X, który balansuje masę ładunku wzdłuż długości naczepy.",
-        "Y_Distribution": "Algorytm załadunku w oparciu o rozkład Y, który optymalizuje układanie palet wzdłuż szerokości naczepy.",
-        "RL_Loading": "Zastosowanie uczenia ze wzmocnieniem do optymalizacji załadunku, dostosowując się do różnych scenariuszy."
-    } 
+    algorithms = {
+        "XY_Axis_Loading": "Metoda załadunku wzdłuż osi X oraz osi Y, która optymalizuje wykorzystanie przestrzeni naczepy.",
+        "X_Distribution": "Metoda załadunku optymalizująca rozkład masy wzdłuż osi X naczepy.",
+        "Y_Distribution": "Metoda załadunku optymalizująca rozkład masy wzdłuż osi Y naczepy.",
+        "RL_Loading": "Metoda załadunku wykorzystująca algorytm uczenia ze wzmocnieniem (reinforcement learning)."
+    }
+    
+    return algorithms 

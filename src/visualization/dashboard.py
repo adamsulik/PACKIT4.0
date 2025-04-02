@@ -62,12 +62,12 @@ def create_layout() -> html.Div:
                             dcc.Dropdown(
                                 id="algorithm-dropdown",
                                 options=[
-                                    {"label": "Załadunek wzdłuż osi X i Z", "value": "XZ_Axis_Loading"},
+                                    {"label": "Załadunek wzdłuż osi X i Y", "value": "XY_Axis_Loading"},
                                     {"label": "Załadunek w oparciu o rozkład X", "value": "X_Distribution"},
                                     {"label": "Załadunek w oparciu o rozkład Y", "value": "Y_Distribution"},
                                     {"label": "Uczenie ze wzmocnieniem", "value": "RL_Loading"}
                                 ],
-                                value="XZ_Axis_Loading",
+                                value="XY_Axis_Loading",
                                 clearable=False,
                                 className="mb-4"
                             ),
@@ -75,63 +75,84 @@ def create_layout() -> html.Div:
                             # Opis wybranego algorytmu
                             html.Div(id="algorithm-description", className="alert alert-info mb-4"),
                             
-                            # Panel do uczenia ze wzmocnieniem (początkowo ukryty)
+                            # Panel treningu RL
                             html.Div([
-                                html.H5("Uczenie ze wzmocnieniem:", className="mb-2"),
+                                html.Hr(),
+                                html.H5("Uczenie ze wzmocnieniem", className="mb-2"),
+                                
+                                # Dodanie opcji wyboru modelu RL
                                 html.Div([
-                                    # Informacje o modelu
-                                    html.Div([
-                                        html.P("Status modelu: ", className="mb-1"),
-                                        html.Div(id="rl-model-status", className="alert alert-secondary py-1")
-                                    ], className="mb-2"),
-                                    
-                                    # Liczba epizodów treningowych
-                                    html.Div([
-                                        html.Label("Liczba epizodów:", className="mr-2"),
-                                        dcc.Input(
-                                            id="rl-episodes-input",
-                                            type="number",
-                                            min=100,
-                                            max=10000,
-                                            step=100,
-                                            value=1000,
-                                            className="form-control"
-                                        )
-                                    ], className="mb-2"),
-                                    
-                                    # Przyciski do treningu
-                                    html.Div([
+                                    html.Label("Wybierz model RL:"),
+                                    dcc.Dropdown(
+                                        id="rl-model-dropdown",
+                                        options=[
+                                            {"label": "Domyślny model (rl_model.pkl)", "value": "default"},
+                                            # Opcje będą aktualizowane dynamicznie
+                                        ],
+                                        value="default",
+                                        clearable=False,
+                                        className="mb-2"
+                                    ),
+                                    html.Button(
+                                        "Odśwież listę modeli", 
+                                        id="refresh-rl-models-button", 
+                                        className="btn btn-outline-secondary btn-sm mb-3"
+                                    ),
+                                ], className="mb-3"),
+                                
+                                html.Label("Liczba epizodów treningowych:"),
+                                dbc.Input(
+                                    id="rl-episodes-input",
+                                    type="number",
+                                    min=10,
+                                    max=5000,
+                                    step=10,
+                                    value=100,
+                                    className="mb-2"
+                                ),
+                                
+                                # Przyciski treningowe
+                                dbc.Row([
+                                    dbc.Col(
                                         dbc.Button(
-                                            "Trenuj model",
+                                            "Uruchom trening",
                                             id="train-rl-button",
                                             color="success",
-                                            className="mr-2"
+                                            className="w-100"
                                         ),
+                                        width=6
+                                    ),
+                                    dbc.Col(
                                         dbc.Button(
-                                            "Zatrzymaj trening",
+                                            "Zatrzymaj",
                                             id="stop-rl-button",
                                             color="danger",
+                                            className="w-100",
                                             disabled=True
-                                        )
-                                    ], className="mb-3"),
-                                    
-                                    # Postęp treningu
-                                    html.Div([
-                                        html.Label("Postęp treningu:"),
-                                        dbc.Progress(
-                                            id="rl-training-progress",
-                                            value=0,
-                                            className="mb-3"
-                                        )
-                                    ]),
-                                    
-                                    # Wykres nagród podczas treningu
-                                    dcc.Graph(
-                                        id="rl-rewards-graph",
-                                        config={"displayModeBar": False},
-                                        style={"height": "200px"}
+                                        ),
+                                        width=6
                                     )
-                                ])
+                                ], className="mb-3"),
+                                
+                                # Pasek postępu
+                                dbc.Progress(
+                                    id="rl-training-progress",
+                                    value=0,
+                                    label="0%",
+                                    striped=True,
+                                    animated=True,
+                                    className="mb-3"
+                                ),
+                                
+                                # Status modelu
+                                html.Div(id="rl-model-status", className="mb-3"),
+                                
+                                # Wykres nagród
+                                dcc.Graph(
+                                    id="rl-rewards-graph",
+                                    figure=create_rl_rewards_graph(),
+                                    config={"displayModeBar": False}
+                                )
                             ], id="rl-training-panel", style={"display": "none"}),
                             
                             # Przycisk uruchomienia algorytmu

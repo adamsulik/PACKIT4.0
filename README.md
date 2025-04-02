@@ -6,7 +6,7 @@ Projekt mający na celu optymalizację procesu załadunku palet transportowych p
 
 ### Główne funkcjonalności
 
-- Implementacja różnych algorytmów załadunku (XZ-Axis, X-Distribution, Z-Distribution)
+- Implementacja różnych algorytmów załadunku (XY-Axis, X-Distribution, Y-Distribution)
 - Zastosowanie uczenia ze wzmocnieniem do optymalizacji załadunku
 - Wizualizacja 3D procesu załadunku z interaktywnym interfejsem
 - Analiza efektywności przestrzennej różnych metod załadunku

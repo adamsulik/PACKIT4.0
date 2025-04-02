@@ -96,23 +96,24 @@ VISUALIZATION = {
     "trailer_outline_color": "rgba(50, 50, 120, 1)"
 }
 
-# Domyślne ustawienia dla algorytmów
+# Domyślne parametry algorytmów
 ALGORITHM_DEFAULTS = {
-    "XZ_Axis_Loading": {
-        "start_position": "front",  # Rozpoczęcie załadunku od przodu naczepy
-        "prioritize_heavy_pallets": True  # Priorytetowanie cięższych palet
+    "XY_Axis_Loading": {
+        "prioritize_heavy_pallets": True,
+        "start_position": "front"
     },
     "X_Distribution": {
-        "zones": 3,  # Liczba stref podziału wzdłuż osi X
-        "balancing_factor": 0.8  # Współczynnik równoważenia masy
+        "target_center_position": 0.5,
+        "weight_balance_factor": 0.7
     },
     "Y_Distribution": {
-        "zones": 2,  # Liczba stref podziału wzdłuż osi Y
-        "balancing_factor": 0.7  # Współczynnik równoważenia masy
+        "side_balance_threshold": 0.1,
+        "prioritize_heavy_pallets": True
     },
-    "Reinforcement_Learning": {
+    "RL_Loading": {
+        "learning_rate": 0.1,
         "discount_factor": 0.95,
-        "learning_rate": 0.001,
-        "exploration_rate": 0.1
+        "exploration_rate": 0.1,
+        "training_mode": False
     }
 } 
