@@ -1,37 +1,37 @@
 # PACKIT 4.0
 
-## Optymalizacja załadunku palet transportowych z wykorzystaniem metod uczenia maszynowego
+## Transport Pallet Loading Optimization Using Machine Learning Methods
 
-Projekt mający na celu optymalizację procesu załadunku palet transportowych przy wykorzystaniu różnych algorytmów i metod uczenia maszynowego.
+A project aimed at optimizing the process of loading transport pallets using various algorithms and machine learning methods.
 
-### Główne funkcjonalności
+### Main Features
 
-- Implementacja różnych algorytmów załadunku (XY-Axis, X-Distribution, Y-Distribution)
-- Zastosowanie uczenia ze wzmocnieniem do optymalizacji załadunku
-- Wizualizacja 3D procesu załadunku z interaktywnym interfejsem
-- Analiza efektywności przestrzennej różnych metod załadunku
-- Weryfikacja i walidacja rozkładu masy oraz kolizji
+- Implementation of different loading algorithms (XY-Axis, X-Distribution, Y-Distribution)
+- Application of reinforcement learning for loading optimization
+- 3D visualization of the loading process with interactive interface
+- Analysis of spatial efficiency of various loading methods
+- Verification and validation of weight distribution and collisions
 
-### Instalacja
+### Installation
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### Uruchomienie
+### Running
 
 ```bash
 python src/main.py
 ```
 
-### Struktura projektu
+### Project Structure
 
-- `src/` - kod źródłowy projektu
-  - `algorithms/` - implementacje algorytmów załadunku
-  - `models/` - modele uczenia maszynowego
-  - `visualization/` - komponenty do wizualizacji 3D
-  - `data/` - zarządzanie danymi
-  - `utils/` - narzędzia pomocnicze
-- `data/` - pliki danych
-- `docs/` - dokumentacja
-- `tests/` - testy 
+- `src/` - source code
+  - `algorithms/` - loading algorithm implementations
+  - `models/` - machine learning models
+  - `visualization/` - 3D visualization components
+  - `data/` - data management
+  - `utils/` - utility tools
+- `data/` - data files
+- `docs/` - documentation
+- `tests/` - tests 
