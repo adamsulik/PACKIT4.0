@@ -5,13 +5,9 @@ from stable_baselines3 import PPO
 from pathlib import Path
 
 from src.algorithms.rl_approach import TrailerLoadingEnv, get_pallets
+from src.config import TRAILER_CONFIG
 
-trailer_config = {
-    "length": 13000,  # mm
-    "width": 2450,
-    "height": 2700,
-    "max_load": 24000,
-}
+trailer_config = TRAILER_CONFIG
 
 def run_inference():
     # Create images folder if it doesn't exist
