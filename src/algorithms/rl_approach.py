@@ -11,7 +11,7 @@ from stable_baselines3.common.callbacks import BaseCallback
 
 from src.data.pallet import Pallet
 from src.data.trailer import Trailer
-from src.config import PALLET_TYPES
+from src.config import PALLET_TYPES, TRAILER_CONFIG
 from src.utils import generate_pallet_sets
 
 # Założenia algorytmu:
@@ -280,12 +280,7 @@ if __name__ == '__main__':
     training_data = get_pallets(5)
     
     # Konfiguracja naczepy (Trailer)
-    trailer_config = {
-        "length": 13000,  # mm
-        "width": 2450,
-        "height": 2700,
-        "max_load": 24000,
-    }
+    trailer_config = TRAILER_CONFIG
     
     # Inicjalizacja środowiska
     env = TrailerLoadingEnv(training_data, trailer_config)
