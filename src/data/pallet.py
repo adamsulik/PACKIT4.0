@@ -2,6 +2,7 @@
 Moduł zawierający definicję klasy Pallet do reprezentacji palet transportowych.
 """
 
+import copy
 from dataclasses import dataclass
 from typing import Dict, Optional, Tuple, List
 
@@ -134,3 +135,7 @@ class Pallet:
             "rotation": self.rotation,
             "color": self.color
         } 
+    
+    def copy(self):
+        """Tworzy kopię palety."""
+        return copy.deepcopy(self)
