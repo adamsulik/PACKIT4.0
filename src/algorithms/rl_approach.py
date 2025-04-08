@@ -144,36 +144,32 @@ class TrailerLoadingEnv(gym.Env):
         # a[1]: wybór pozycji y – przeliczony jako ułamek szerokości naczepy.
         target_y = action[1] * self.trailer.width
         
-        # Pobieramy dostępne pozycje dla palety (każda pozycja to (x, y, z))
-        available_positions = self.trailer.get_available_positions(selected_pallet)
+        # Pobierz dostępne pozycje dla palety
+        available_positions = self.trailer.get_available_positions(selected_pallet, stacking=False)
         valid_position = None
         if available_positions:
-            # Sortuj wg: najbliższy target_y, a przy remisie wg najmniejszego x
+            # Sortuj wg odległości od target_y, a następnie wg najmniejszego x
             sorted_positions = sorted(available_positions, key=lambda pos: (abs(pos[1] - target_y), pos[0]))
-            valid_position = sorted_positions[0]
+            for pos in sorted_positions:
+                selected_pallet.set_position(*pos)
+                # Sprawdź, czy pozycja mieści się w obrębie naczepy i nie powoduje kolizji
+                if self.trailer._check_bounds(selected_pallet) and not self.trailer._check_collision(selected_pallet):
+                    valid_position = pos
+                    break
         
         if valid_position is None:
-            # Nie można załadować palety -> kara.
-            reward = -10
+            reward = -1000
         else:
-            # Ustawiamy pozycję palety (x, y, z) i weryfikujemy ograniczenia.
             selected_pallet.set_position(*valid_position)
-            if (not self.trailer._check_bounds(selected_pallet)) or self.trailer._check_collision(selected_pallet):
-                reward = -10
-                # Przywracamy paletę do listy unloaded
+            self.trailer.add_pallet(selected_pallet)
+            self.loaded_pallets.append(selected_pallet)
+            if not self.trailer.is_weight_distribution_valid():
+                reward = -1000
+                self.trailer.remove_pallet(selected_pallet.pallet_id)
                 self.unloaded_pallets.append(selected_pallet)
             else:
-                self.trailer.add_pallet(selected_pallet)
-                self.loaded_pallets.append(selected_pallet)
-                if not self.trailer.is_weight_distribution_valid():
-                    reward = -10
-                    # W przypadku naruszenia warunku rozkładu, paleta nie powinna być w naczepie
-                    self.trailer.remove_pallet(selected_pallet.pallet_id)
-                    self.unloaded_pallets.append(selected_pallet)
-                else:
-                    # Jeśli wszystko jest OK, przyznajemy nagrodę zależną od efektywności.
-                    efficiency = self.trailer.get_loading_efficiency().get("space_utilization", 0.0)
-                    reward = efficiency * 100  # skala nagrody
+                efficiency = self.trailer.get_loading_efficiency().get("space_utilization", 0.0)
+                reward = efficiency * 100
                     
         # Aktualizacja inwentarza.
         self.update_inventory()
@@ -183,12 +179,25 @@ class TrailerLoadingEnv(gym.Env):
         
         return self._get_observation(), reward, done, False, info  # modified to include truncated flag
 
+    def _parse_color(self, color):
+        # Konwertuje format "rgb(r, g, b)" na tuple RGBA
+        if isinstance(color, str) and color.startswith("rgb("):
+            parts = color[4:-1].split(',')
+            r, g, b = [int(x.strip())/255.0 for x in parts]
+            return (r, g, b, 1.0)
+        return color
+
     def render(self, mode="human"):
         """
         Wizualizacja stanu naczepy.
         Możemy tutaj użyć dowolnej biblioteki graficznej.
         Przykładowo, rysujemy prostokątną reprezentację naczepy i zaznaczamy umieszczone palety.
         """
+        # Wypisanie w terminalu informacji o załadowanych paletach
+        print("Załadowane palety:")
+        for pallet in self.trailer.loaded_pallets:
+            print(pallet)
+            
         # Prosty przykład wizualizacji przy użyciu matplotlib.
         plt.figure(figsize=(10, 4))
         plt.title("Widok naczepy")
@@ -197,8 +206,11 @@ class TrailerLoadingEnv(gym.Env):
         for pallet in self.trailer.loaded_pallets:
             # Rysujemy paletę jako prostokąt
             pos = pallet.position  # zakładamy, że pozycja to (x, y, z)
-            rect = plt.Rectangle((pos[0], pos[1]), pallet.width, pallet.length,
-                                 color=PALLET_TYPES[pallet.pallet_type]["color"], alpha=0.7)
+            # Konwersja koloru, jeśli potrzebna
+            color = PALLET_TYPES[pallet.pallet_type]["color"]
+            color = self._parse_color(color)
+            rect = plt.Rectangle((pos[1], pos[0]), pallet.width, pallet.length,
+                                 color=color, alpha=0.7)
             plt.gca().add_patch(rect)
         plt.xlim(0, self.trailer.width)
         plt.ylim(0, self.trailer.length)
@@ -210,46 +222,62 @@ class TrailerLoadingEnv(gym.Env):
 # -----------------------------------------------------------------------------
 # Przykładowy szkic treningu z wykorzystaniem PPO (stable-baselines3)
 # -----------------------------------------------------------------------------
-def get_pallets():
-    # wybierz set 1
-    palletes = generate_pallet_sets()
-    palletes = palletes["Zestaw 1: Równomierny rozkład"]
-    return palletes
-
+def get_pallets(num_of_all_sets: int = 1):
+    """
+    Generates and returns a list of pallets by combining multiple sets of pallet data.
+    This function calls `generate_pallet_sets` to create pallet sets, extracts the 
+    pallet data from each set, and combines them into a single list. It is useful 
+    for scenarios where multiple sets of pallets need to be processed or analyzed.
+    Args:
+        num_of_all_sets (int): The number of pallet sets to generate. Defaults to 1.
+    Returns:
+        list: A list containing all pallets from the generated sets.
+    """
+    final_palletes = []
+    for i in range(num_of_all_sets):    
+        palletes = generate_pallet_sets()
+        palletes = [palletes[key] for key in palletes.keys()]
+        final_palletes.extend(palletes)
+    return final_palletes
+    
 if __name__ == '__main__':
 
-    # Nowy callback do monitorowania postępów treningu oraz rejestrowania funkcji kosztu
+    # Zmodyfikowany callback z zapisem epizodowych nagród jako metryki adaptacji
     class TrainProgressCallback(BaseCallback):
         def __init__(self, total_timesteps, verbose=0):
             super(TrainProgressCallback, self).__init__(verbose)
             self.total_timesteps = total_timesteps
             self.pbar = None
-            self.cost_history = []  # zapisujemy wartość kosztu (przyjmujemy, że koszt = -reward)
+            self.episode_rewards = []  # suma nagród z zakończonych epizodów
 
         def _on_training_start(self) -> None:
             self.pbar = tqdm(total=self.total_timesteps, desc="Trening modelu")
 
         def _on_step(self) -> bool:
             self.pbar.update(1)
-            reward = self.locals.get("reward")
-            if reward is not None:
-                self.cost_history.append(-reward)
+            # Pobieramy informację o zakończeniu epizodu, jeśli dostępna
+            infos = self.locals.get("infos")
+            if infos is not None:
+                for info in infos:
+                    if "episode" in info:
+                        self.episode_rewards.append(info["episode"]["r"])
+            if self.num_timesteps >= self.total_timesteps:
+                return False
             return True
 
         def _on_training_end(self) -> None:
             if self.pbar is not None:
                 self.pbar.close()
-            # Wyświetlenie wykresu funkcji kosztu
-            import matplotlib.pyplot as plt
             plt.figure()
-            plt.plot(self.cost_history)
-            plt.xlabel("Krok treningowy")
-            plt.ylabel("Funkcja kosztu (-reward)")
-            plt.title("Funkcja kosztu w czasie treningu")
+            plt.plot(self.episode_rewards, label="Episode Rewards", alpha=0.6)
+            plt.xlabel("Numer epizodu")
+            plt.ylabel("Suma nagród epizodowych")
+            plt.title("Ewolucja adaptacji modelu (nagroda epizodowa) w czasie")
+            plt.legend()
             plt.show()
 
     # Generujemy 20 różnych zestawów palet.
-    training_data = get_pallets()
+    training_data = get_pallets(5)
     
     # Konfiguracja naczepy (Trailer)
     trailer_config = {
@@ -266,7 +294,7 @@ if __name__ == '__main__':
     model = PPO("MlpPolicy", env, verbose=1)
     
     # Ustal całkowitą liczbę timestepów i utwórz callback z paskiem progresu.
-    total_timesteps = 100000
+    total_timesteps = 10000
     progress_callback = TrainProgressCallback(total_timesteps=total_timesteps)
     
     # Wywołanie metody learn z callbackiem
@@ -274,6 +302,3 @@ if __name__ == '__main__':
     
     # Zapis modelu do pliku:
     model.save("ppo_trailer_loading_model")
-    
-    with open("ppo_trailer_loading_model.pkl", "wb") as f:
-        pickle.dump(model, f)
