@@ -249,8 +249,8 @@ if __name__ == '__main__':
 
     # Definicja argumentów z linii poleceń
     parser = argparse.ArgumentParser(description="Trening modelu PPO dla środowiska TrailerLoadingEnv.")
-    parser.add_argument('-t', "--time_steps", type=int, default=1000, help="Liczba kroków treningowych (timesteps).")
-    parser.add_argument('-n', "--num_pallet_sets", type=int, default=5, help="Liczba zestawów palet do wygenerowania.")
+    parser.add_argument('-t', "--time_steps", type=int, default=10000, help="Liczba kroków treningowych (timesteps).")
+    parser.add_argument('-n', "--num_pallet_sets", type=int, default=10, help="Liczba zestawów palet do wygenerowania.")
     parser.add_argument("--model-savedir", type=Path, default=Path("models")/"ppo_trailer_loading_model", help="Ścieżka do katalogu, w którym zapisany będzie model.")
     args = parser.parse_args()
 
