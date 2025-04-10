@@ -75,85 +75,85 @@ def create_layout() -> html.Div:
                             # Opis wybranego algorytmu
                             html.Div(id="algorithm-description", className="alert alert-info mb-4"),
                             
-                            # Panel treningu RL
-                            html.Div([
-                                html.Hr(),
-                                html.H5("Uczenie ze wzmocnieniem", className="mb-2"),
+                            # # Panel treningu RL
+                            # html.Div([
+                            #     html.Hr(),
+                            #     html.H5("Uczenie ze wzmocnieniem", className="mb-2"),
                                 
-                                # Dodanie opcji wyboru modelu RL
-                                html.Div([
-                                    html.Label("Wybierz model RL:"),
-                                    dcc.Dropdown(
-                                        id="rl-model-dropdown",
-                                        options=[
-                                            {"label": "Domyślny model (rl_model.pkl)", "value": "default"},
-                                            # Opcje będą aktualizowane dynamicznie
-                                        ],
-                                        value="default",
-                                        clearable=False,
-                                        className="mb-2"
-                                    ),
-                                    html.Button(
-                                        "Odśwież listę modeli", 
-                                        id="refresh-rl-models-button", 
-                                        className="btn btn-outline-secondary btn-sm mb-3"
-                                    ),
-                                ], className="mb-3"),
+                            #     # Dodanie opcji wyboru modelu RL
+                            #     html.Div([
+                            #         html.Label("Wybierz model RL:"),
+                            #         dcc.Dropdown(
+                            #             id="rl-model-dropdown",
+                            #             options=[
+                            #                 {"label": "Domyślny model (rl_model.pkl)", "value": "default"},
+                            #                 # Opcje będą aktualizowane dynamicznie
+                            #             ],
+                            #             value="default",
+                            #             clearable=False,
+                            #             className="mb-2"
+                            #         ),
+                            #         html.Button(
+                            #             "Odśwież listę modeli", 
+                            #             id="refresh-rl-models-button", 
+                            #             className="btn btn-outline-secondary btn-sm mb-3"
+                            #         ),
+                            #     ], className="mb-3"),
                                 
-                                html.Label("Liczba epizodów treningowych:"),
-                                dbc.Input(
-                                    id="rl-episodes-input",
-                                    type="number",
-                                    min=10,
-                                    max=5000,
-                                    step=10,
-                                    value=100,
-                                    className="mb-2"
-                                ),
+                            #     html.Label("Liczba epizodów treningowych:"),
+                            #     dbc.Input(
+                            #         id="rl-episodes-input",
+                            #         type="number",
+                            #         min=10,
+                            #         max=5000,
+                            #         step=10,
+                            #         value=100,
+                            #         className="mb-2"
+                            #     ),
                                 
-                                # Przyciski treningowe
-                                dbc.Row([
-                                    dbc.Col(
-                                        dbc.Button(
-                                            "Uruchom trening",
-                                            id="train-rl-button",
-                                            color="success",
-                                            className="w-100"
-                                        ),
-                                        width=6
-                                    ),
-                                    dbc.Col(
-                                        dbc.Button(
-                                            "Zatrzymaj",
-                                            id="stop-rl-button",
-                                            color="danger",
-                                            className="w-100",
-                                            disabled=True
-                                        ),
-                                        width=6
-                                    )
-                                ], className="mb-3"),
+                            #     # Przyciski treningowe
+                            #     dbc.Row([
+                            #         dbc.Col(
+                            #             dbc.Button(
+                            #                 "Uruchom trening",
+                            #                 id="train-rl-button",
+                            #                 color="success",
+                            #                 className="w-100"
+                            #             ),
+                            #             width=6
+                            #         ),
+                            #         dbc.Col(
+                            #             dbc.Button(
+                            #                 "Zatrzymaj",
+                            #                 id="stop-rl-button",
+                            #                 color="danger",
+                            #                 className="w-100",
+                            #                 disabled=True
+                            #             ),
+                            #             width=6
+                            #         )
+                            #     ], className="mb-3"),
                                 
-                                # Pasek postępu
-                                dbc.Progress(
-                                    id="rl-training-progress",
-                                    value=0,
-                                    label="0%",
-                                    striped=True,
-                                    animated=True,
-                                    className="mb-3"
-                                ),
+                            #     # Pasek postępu
+                            #     dbc.Progress(
+                            #         id="rl-training-progress",
+                            #         value=0,
+                            #         label="0%",
+                            #         striped=True,
+                            #         animated=True,
+                            #         className="mb-3"
+                            #     ),
                                 
-                                # Status modelu
-                                html.Div(id="rl-model-status", className="mb-3"),
+                            #     # Status modelu
+                            #     html.Div(id="rl-model-status", className="mb-3"),
                                 
-                                # Wykres nagród
-                                dcc.Graph(
-                                    id="rl-rewards-graph",
-                                    figure=create_rl_rewards_graph(),
-                                    config={"displayModeBar": False}
-                                )
-                            ], id="rl-training-panel", style={"display": "none"}),
+                            #     # Wykres nagród
+                            #     dcc.Graph(
+                            #         id="rl-rewards-graph",
+                            #         figure=create_rl_rewards_graph(),
+                            #         config={"displayModeBar": False}
+                            #     )
+                            # ], id="rl-training-panel", style={"display": "none"}),
                             
                             # Przycisk uruchomienia algorytmu
                             dbc.Button(
