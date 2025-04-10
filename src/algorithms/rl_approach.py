@@ -152,7 +152,7 @@ class TrailerLoadingEnv(gym.Env):
         valid_position = None
         if available_positions:
             # Sortuj wg odległości od target_y, a następnie wg najmniejszego x
-            sorted_positions = sorted(available_positions, key=lambda pos: (abs(pos[1] - target_y), pos[0]))
+            sorted_positions = sorted(available_positions, key=lambda pos: (abs(pos[1] - target_y), -pos[0]))
             for pos in sorted_positions:
                 selected_pallet.set_position(*pos)
                 # Sprawdź, czy pozycja mieści się w obrębie naczepy i nie powoduje kolizji
