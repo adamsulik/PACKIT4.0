@@ -117,6 +117,20 @@ class TrailerLoadingEnv(gym.Env):
         norm_inventory = self.inventory / 20.0
         obs = np.concatenate(([occupancy, mass_util, num_remaining, weight_balance_side, weight_balance_front_back], norm_inventory))
         return obs.astype(np.float32)
+    
+    def available_to_load_more(self):
+        """
+        Sprawdza, czy można załadować więcej palet.
+        Zwraca True, jeśli jest mozliwość załadunku pozostałych palet.
+        """
+        any_available = False
+        for pallet in self.unloaded_pallets:
+            available_positions = self.trailer.get_available_positions(pallet, stacking=False)
+            if available_positions:
+                any_available = True
+                break
+        return any_available
+
 
     def step(self, action):
         """
@@ -152,7 +166,7 @@ class TrailerLoadingEnv(gym.Env):
         valid_position = None
         if available_positions:
             # Sortuj wg odległości od target_y, a następnie wg najmniejszego x
-            sorted_positions = sorted(available_positions, key=lambda pos: (abs(pos[1] - target_y), -pos[0]))
+            sorted_positions = sorted(available_positions, key=lambda pos: (abs(pos[1] - target_y), pos[0]))
             for pos in sorted_positions:
                 selected_pallet.set_position(*pos)
                 # Sprawdź, czy pozycja mieści się w obrębie naczepy i nie powoduje kolizji
@@ -161,24 +175,30 @@ class TrailerLoadingEnv(gym.Env):
                     break
         
         if valid_position is None:
-            reward = -1000
+            reward = -300
         else:
             selected_pallet.set_position(*valid_position)
             self.trailer.add_pallet(selected_pallet)
             self.loaded_pallets.append(selected_pallet)
             efficiency = self.trailer.get_loading_efficiency().get('space_utilization', 0.0) 
             efficiency += self.trailer.get_loading_efficiency().get('weight_utilization', 0.0)
+            efficiency += 1 - np.abs(0.5 - self.trailer.get_loading_efficiency().get('weight_balance_side', 0.0))
+            efficiency += 1 - np.abs(0.6 - self.trailer.get_loading_efficiency().get('weight_balance_front_back', 0.0))
             # reward = efficiency * 100
             reward = 10 * efficiency * (1 - len(self.unloaded_pallets) / len(self.all_pallets))
 
         # Aktualizacja inwentarza.
         self.update_inventory()
         
-        if len(self.unloaded_pallets) == 0:
+        if len(self.unloaded_pallets) == 0 or not self.available_to_load_more():
             balance_validation = self.trailer.is_weight_distribution_valid()
             if not balance_validation['overall_valid']:
                 reward -= 50 * int(balance_validation['side_balanced'])
                 reward -= 50 * int(balance_validation['front_back_balanced'])
+
+            # dodaj karę za kazda niezaładowaną paletę
+            reward -= 10 * len(self.unloaded_pallets)
+            
             done = True
         
         return self._get_observation(), reward, done, False, info  # modified to include truncated flag
@@ -242,8 +262,8 @@ def get_pallets(num_of_all_sets: int = 1):
         palletes = generate_pallet_sets()
         palletes = [palletes[key] for key in palletes.keys()]
         final_palletes.extend(palletes)
-    return final_palletes
-    # return [final_palletes[0]] # !! Overfitting parameter for testing purposes
+    # return final_palletes
+    return [final_palletes[0]] # !! Overfitting parameter for testing purposes
     
 if __name__ == '__main__':
 

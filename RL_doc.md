@@ -66,6 +66,7 @@ obs = np.concatenate((
 | ----------------------------------------------|---|
 | Nieprawidłowa pozycja/kolizja                 | - 1000 |
 | Poprawny załadunek                            | `reward = 10 * efficiency * progress_factor` |
+| Nagroda za utrzymanie warunków masy           | `1 - np.abs(target - self.trailer.get_loading_efficiency().get('weight_balance_side', 0.0))`|
 | Niezrównowaony rozkład masy po zakończeniu    | -50 za kadą niespełnioną oś (przód-tył, lewo-prawo) |
 
 Gdzie:
@@ -106,3 +107,9 @@ W projekcie rozważono możliwość zastosowania algorytmu DQN, jednak jego klas
 Z kolei algorytmy typu policy gradient, takie jak PPO, lepiej nadają się do pracy w przestrzeniach ciągłych, ponieważ bezpośrednio uczą rozkładów prawdopodobieństwa nad możliwymi akcjami. PPO nie wymaga dyskretyzowania przestrzeni akcji i pozwala agentowi działać bardziej płynnie i adaptacyjnie, co jest szczególnie ważne przy zadaniach takich jak pozycjonowanie palet w naczepie.
 
 Choć możliwe byłoby przekształcenie środowiska do wersji zgodnej z DQN, wiązałoby się to z kompromisami w zakresie precyzji i złożoności przestrzeni decyzyjnej. W związku z tym decyzja o zastosowaniu PPO jako algorytmu uczącego wydaje się uzasadniona i najlepiej dopasowana do specyfiki problemu.
+
+## Ogólne sugestie
+
+- Warto rozważyć jak powinna wyglądać funkcja celu - obecny draft może nie być wystarczający
+- Obecnie generowane rozkłady wydają się niejednokrotnie niemożliwe do załadonku, warto rozważyć napisanie algorytmu generującego palety z gwarancją ich "ładowalności"
+- Brakuje metody porównawczej pomiędzy algorytmami. Co prawda są metryki, ale brakuje analizy porównawczej i narzędzia to generującego. Przykładowe podejście: Wygeneruj zestaw o zadanych załżoeniach (np. małe palety). Następnie Wybierz algorytm i wyznacz statystki które będą wynikiem jego działania. Zapętl te kroki tak aby uzyskać statystykę parametrów dla danego załoenia o paletach. Porównaj statystki pomiędzy różnymi algorytmami oraz pomiędzy różnymi założeniami. Wynikiem takiej operacji powinna być macierz (heat mapa) dla każdej ze statystyk: Oś X - założenia o paletach, oś Y - nazwa algorytmu. Głównym problemem obecnie jest to, że nawet generując konkretne rozwiązanie nie wiem jak wypada każdy z algorytmów na takim samym zestawie palet, bo za każdym razem losowany jest zupełnie nowy.
