@@ -27,7 +27,6 @@ class ReinforcementLearningLoading(LoadingAlgorithm):
             action, _ = self.model.predict(obs, deterministic=True)
             obs, reward, done, truncated, info = env.step(action)
             total_reward += reward
-        
-        print(env.trailer.loaded_pallets)
+        self.trailer = env.trailer
 
         return getattr(env, "loaded_pallets", [])
