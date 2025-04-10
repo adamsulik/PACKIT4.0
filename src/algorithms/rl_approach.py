@@ -3,8 +3,8 @@ import random
 import gymnasium as gym       # modified import
 from gymnasium import spaces   # modified import
 import matplotlib.pyplot as plt
-import pickle  # do zapisu binarnego modelu
 from tqdm import tqdm
+from pathlib import Path
 
 from stable_baselines3 import PPO   # changed from DQN to PPO
 from stable_baselines3.common.callbacks import BaseCallback
@@ -13,6 +13,7 @@ from src.data.pallet import Pallet
 from src.data.trailer import Trailer
 from src.config import PALLET_TYPES, TRAILER_CONFIG
 from src.utils import generate_pallet_sets
+import argparse
 
 # Założenia algorytmu:
 # - training_data to lista scenariuszy (lista palet) do załadowania.
@@ -66,7 +67,7 @@ class TrailerLoadingEnv(gym.Env):
         # Obserwacja składa się z:
         # - 3 elementy jak wcześniej (np. occupancy, mass_util, znormalizowana liczba palet)
         # - Dodatkowo vector o wymiarze równym liczbie typów palet (ile każdego typu pozostało)
-        obs_vector_length = 3 + len(PALLET_TYPE_ORDER)
+        obs_vector_length = 5 + len(PALLET_TYPE_ORDER)
         self.observation_space = spaces.Box(low=0, high=1, shape=(obs_vector_length,), dtype=np.float32)
         
         self.current_episode = 0
@@ -108,11 +109,13 @@ class TrailerLoadingEnv(gym.Env):
         efficiency = self.trailer.get_loading_efficiency()  # powinna zwracać m.in. "space_utilization", "load_utilization"
         occupancy = efficiency.get("space_utilization", 0.0)
         mass_util = efficiency.get("load_utilization", 0.0)
+        weight_balance_side = efficiency.get("weight_balance_side", 0.0)
+        weight_balance_front_back = efficiency.get("weight_balance_front", 0.0)
         num_remaining = len(self.unloaded_pallets) / len(self.all_pallets)
-        
+
         # Normalizacja inwentarza – zakładamy, że maksymalna liczba jakiegokolwiek typu palet w treningu nie przekroczy np. 20.
         norm_inventory = self.inventory / 20.0
-        obs = np.concatenate(([occupancy, mass_util, num_remaining], norm_inventory))
+        obs = np.concatenate(([occupancy, mass_util, num_remaining, weight_balance_side, weight_balance_front_back], norm_inventory))
         return obs.astype(np.float32)
 
     def step(self, action):
@@ -163,18 +166,19 @@ class TrailerLoadingEnv(gym.Env):
             selected_pallet.set_position(*valid_position)
             self.trailer.add_pallet(selected_pallet)
             self.loaded_pallets.append(selected_pallet)
-            if not self.trailer.is_weight_distribution_valid():
-                reward = -1000
-                self.trailer.remove_pallet(selected_pallet.pallet_id)
-                self.unloaded_pallets.append(selected_pallet)
-            else:
-                efficiency = self.trailer.get_loading_efficiency().get("space_utilization", 0.0)
-                reward = efficiency * 100
-                    
+            efficiency = self.trailer.get_loading_efficiency().get('space_utilization', 0.0) 
+            efficiency += self.trailer.get_loading_efficiency().get('weight_utilization', 0.0)
+            # reward = efficiency * 100
+            reward = 10 * efficiency * (1 - len(self.unloaded_pallets) / len(self.all_pallets))
+
         # Aktualizacja inwentarza.
         self.update_inventory()
         
         if len(self.unloaded_pallets) == 0:
+            balance_validation = self.trailer.is_weight_distribution_valid()
+            if not balance_validation['overall_valid']:
+                reward -= 50 * int(balance_validation['side_balanced'])
+                reward -= 50 * int(balance_validation['front_back_balanced'])
             done = True
         
         return self._get_observation(), reward, done, False, info  # modified to include truncated flag
@@ -239,8 +243,20 @@ def get_pallets(num_of_all_sets: int = 1):
         palletes = [palletes[key] for key in palletes.keys()]
         final_palletes.extend(palletes)
     return final_palletes
+    # return [final_palletes[0]] # !! Overfitting parameter for testing purposes
     
 if __name__ == '__main__':
+
+    # Definicja argumentów z linii poleceń
+    parser = argparse.ArgumentParser(description="Trening modelu PPO dla środowiska TrailerLoadingEnv.")
+    parser.add_argument('-t', "--time_steps", type=int, default=1000, help="Liczba kroków treningowych (timesteps).")
+    parser.add_argument('-n', "--num_pallet_sets", type=int, default=5, help="Liczba zestawów palet do wygenerowania.")
+    parser.add_argument("--model-savedir", type=Path, default=Path("models")/"ppo_trailer_loading_model", help="Ścieżka do katalogu, w którym zapisany będzie model.")
+    args = parser.parse_args()
+
+    # Pobranie wartości argumentów
+    total_timesteps = args.time_steps
+    num_pallet_sets = args.num_pallet_sets
 
     # Zmodyfikowany callback z zapisem epizodowych nagród jako metryki adaptacji
     class TrainProgressCallback(BaseCallback):
@@ -277,7 +293,7 @@ if __name__ == '__main__':
             plt.show()
 
     # Generujemy 20 różnych zestawów palet.
-    training_data = get_pallets(5)
+    training_data = get_pallets(num_pallet_sets)
     
     # Konfiguracja naczepy (Trailer)
     trailer_config = TRAILER_CONFIG
@@ -286,14 +302,14 @@ if __name__ == '__main__':
     env = TrailerLoadingEnv(training_data, trailer_config)
     
     # Konfiguracja modelu PPO z biblioteką stable-baselines3
-    model = PPO("MlpPolicy", env, verbose=1)
+    # Zmiana: dodanie policy_kwargs do ustawienia głębszej sieci neuronowej [128, 64, 32]
+    model = PPO("MlpPolicy", env, policy_kwargs=dict(net_arch=[128, 64, 32]), verbose=1)
     
     # Ustal całkowitą liczbę timestepów i utwórz callback z paskiem progresu.
-    total_timesteps = 10000
     progress_callback = TrainProgressCallback(total_timesteps=total_timesteps)
     
     # Wywołanie metody learn z callbackiem
     model.learn(total_timesteps=total_timesteps, callback=progress_callback)
     
     # Zapis modelu do pliku:
-    model.save("ppo_trailer_loading_model")
+    model.save(args.model_savedir)
