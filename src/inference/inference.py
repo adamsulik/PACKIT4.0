@@ -15,7 +15,11 @@ def run_inference():
     images_dir.mkdir(exist_ok=True)
     
     # Load the trained PPO model once
+#<<<<<<< dev/rl_model
     model = PPO.load(Path("models")/"ppo_trailer_loading_model")
+
+    model = PPO.load("ppo_trailer_loading_model.zip")
+#>>>>>>> main
 
     num_runs = 5  # number of sample sets to visualize
     training_data_palletes = get_pallets(5)
