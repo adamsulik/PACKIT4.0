@@ -1,3 +1,5 @@
+from scipy.stats import truncnorm
+
 """
 Plik zawierający konfigurację i parametry dla symulacji załadunku palet.
 """
@@ -79,6 +81,20 @@ PALLET_TYPES = {
         "ldm": 0.94,
         "color": "rgb(127, 127, 127)"
     }
+}
+
+def get_truncated_normal(mean, sd, lower, upper):
+    return truncnorm((lower - mean) / sd, (upper - mean) / sd, loc=mean, scale=sd)
+
+# Rozkłady probabilistyczne masy dla każdego rodzaju palety
+PALLET_WEIGHT_DISTRIBUTIONS = {
+    pallet_type: get_truncated_normal(
+        mean=pallet["weight"], 
+        sd=pallet["weight"] * 0.1,  # Odchylenie standardowe jako 10% masy
+        lower=0, 
+        upper=pallet["weight"] * 5  # Górny limit jako 2x masa
+    )
+    for pallet_type, pallet in PALLET_TYPES.items()
 }
 
 # Ograniczenia przestrzenne i fizyczne
