@@ -168,7 +168,7 @@ class Trailer:
             "overall_valid": side_balanced and front_back_balanced
         }
 
-    def get_available_positions(self, pallet: Pallet) -> List[Tuple[int, int, int]]:
+    def get_available_positions(self, pallet: Pallet, stacking: bool = True) -> List[Tuple[int, int, int]]:
         """
         Zwraca listę dostępnych pozycji dla palety.
         
@@ -202,9 +202,13 @@ class Trailer:
                         position=(x, y, z),
                         rotation=pallet.rotation
                     )
+                    if not stacking and z > 0:
+                        # Jeśli nie chcemy piętrować, sprawdź, czy z > 0
+                        continue
                     
                     if not self._check_collision(temp_pallet):
                         available_positions.append((x, y, z))
+
         
         return available_positions
 

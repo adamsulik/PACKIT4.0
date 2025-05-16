@@ -9,7 +9,7 @@ import uuid
 from typing import List, Dict, Any
 
 from src.data.pallet import Pallet
-from src.config import PALLET_TYPES
+from src.config import PALLET_TYPES, PALLET_WEIGHT_DISTRIBUTIONS
 
 
 def generate_pallet_sets() -> Dict[str, List[Pallet]]:
@@ -29,7 +29,8 @@ def generate_pallet_sets() -> Dict[str, List[Pallet]]:
         specs = PALLET_TYPES[pallet_type]
         
         # Losowa masa ładunku między 50 a 500 kg
-        cargo_weight = random.randint(50, 500)
+        # cargo_weight = random.randint(50, 500)
+        cargo_weight = PALLET_WEIGHT_DISTRIBUTIONS[pallet_type].rvs(1)[0]
         
         pallet = Pallet(
             pallet_id=f"S1_{uuid.uuid4().hex[:6]}",

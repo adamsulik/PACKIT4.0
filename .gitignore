@@ -1,0 +1,5 @@
+# Ignore Cython generated files
+*.cpython*
+
+# ignore images generated on inference
+images/*
